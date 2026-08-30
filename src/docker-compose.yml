@@ -1,0 +1,28 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: mysql_modelagem
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: modelagem
+      MYSQL_USER: usuario
+      MYSQL_PASSWORD: senhasegura
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: phpmyadmin_modelagem
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+
+volumes:
+  mysql_data:
+    driver: local
