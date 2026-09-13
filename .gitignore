@@ -1,4 +1,4 @@
-raw/
+src/raw/*.csv
 dados_consolidados/
 zips/
 parquet/
