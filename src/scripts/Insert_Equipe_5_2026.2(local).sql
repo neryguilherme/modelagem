@@ -65,7 +65,11 @@ CREATE TABLE `temp_despesas` (
 -- -----------------------------------------------------------------------------
 -- SHOW VARIABLES LIKE 'secure_file_priv';
 
-LOAD DATA INFILE '/var/lib/mysql-files/despesas-2025.csv'
+-- [Opção B: Instalação nativa Windows Server]
+LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/despesas-2025.csv'
+
+-- [Opção C: Caso utilize XAMPP no Windows]
+-- LOAD DATA INFILE 'C:/xampp/mysql/despesas-2025.csv'
 
 INTO TABLE `temp_despesas`
 FIELDS TERMINATED BY ';'
