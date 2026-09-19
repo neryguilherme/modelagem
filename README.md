@@ -1,280 +1,283 @@
-# 📊 Modelagem e Engenharia de Banco de Dados: Despesas Públicas (TCE-PB 2025)
+# 📊 Modelagem e Engenharia de Banco de Dados Relacional (OLTP / 3FN): Despesas Públicas (TCE-PB 2025)
 
 [![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![phpMyAdmin](https://img.shields.io/badge/phpMyAdmin-Latest-6C78AF?style=for-the-badge&logo=phpmyadmin&logoColor=white)](https://www.phpmyadmin.net/)
 [![Workbench](https://img.shields.io/badge/MySQL_Workbench-8.0-00758F?style=for-the-badge&logo=mysql&logoColor=white)](https://dev.mysql.com/downloads/workbench/)
-[![Modelo](https://img.shields.io/badge/Arquitetura-Star_Schema_%7C_3FN-success?style=for-the-badge)](https://en.wikipedia.org/wiki/Star_schema)
+[![Modelo](https://img.shields.io/badge/Arquitetura-OLTP_%7C_3FN-success?style=for-the-badge)](https://en.wikipedia.org/wiki/Third_normal_form)
 
-Projeto de modelagem dimensional (**Star Schema**) e implementação de banco de dados relacional normalizado até a **3ª Forma Normal (3FN)**, desenvolvido a partir dos microdados públicos de despesas orçamentárias do **Tribunal de Contas do Estado da Paraíba (TCE-PB)** para o **1º Semestre de 2025**.
+Projeto acadêmico de modelagem e engenharia de banco de dados relacional transacional (**OLTP**), estritamente normalizado até a **3ª Forma Normal (3FN)**, desenvolvido a partir dos microdados públicos de execução orçamentária do **Tribunal de Contas do Estado da Paraíba (TCE-PB)** para o **1º Semestre de 2025**.
 
-O projeto contempla a concepção do modelo lógico e dimensional (EER), estratégias robustas de tratamento e mitigação de inconsistências/nulos, orquestração de infraestrutura conteinerizada via **Docker Compose** e um pipeline completo de extração, carga (ELT), normalização e validação/auditoria executado diretamente em SQL puro com alto desempenho no motor MySQL.
+O projeto estrutura o ciclo de vida da execução da despesa pública (**Empenho**, **Liquidação** e **Pagamento**) em torno de uma entidade transacional central (`despesa`), decomposta em 12 tabelas de domínio e localidade. O fluxo inclui a concepção lógica no MySQL Workbench, conteinerização via **Docker Compose** e pipeline de carga, higienização, filtro temporal e auditoria executado integralmente via scripts SQL puros.
 
 ---
 
 ## 📌 Sumário
 
-- [Origem dos Dados](#-origem-dos-dados)
-- [Arquitetura de Infraestrutura (Docker)](#-arquitetura-de-infraestrutura-docker)
-- [Arquitetura e Modelo Lógico (EER)](#-arquitetura-e-modelo-lógico-eer)
+- [Origem dos Dados e Recorte Temporal](#-origem-dos-dados-e-recorte-temporal)
+- [Ciclo da Despesa Orçamentária e Arquitetura Relacional](#️-ciclo-da-despesa-orçamentária-e-arquitetura-relacional)
+- [Diagrama Entidade-Relacionamento (EER)](#-diagrama-entidade-relacionamento-eer)
 - [Dicionário de Tabelas e Entidades](#-dicionário-de-tabelas-e-entidades)
-- [Relacionamentos e Chaves](#-relacionamentos-e-chaves)
-  - [Justificativa da Surrogate Key (`id_fato`)](#justificativa-da-surrogate-key-id_fato)
-  - [Mapeamento dos Vínculos (1:N Não-Identificadores)](#mapeamento-dos-vínculos-1n-não-identificadores)
-- [Estratégia de Mitigação de Valores Nulos](#️-estratégia-de-mitigação-de-valores-nulos)
+- [Colunas Descartadas e Justificativas de Modelagem](#-colunas-descartadas-e-justificativas-de-modelagem)
+- [Tratamento Documental: Preservação de CPF e CNPJ (VARCHAR)](#-tratamento-documental-preservação-de-cpf-e-cnpj-varchar)
+- [Estratégia de Mitigação de Inconsistências e Nulos](#️-estratégia-de-mitigação-de-inconsistências-e-nulos)
+- [Arquitetura de Infraestrutura (Docker)](#-arquitetura-de-infraestrutura-docker)
 - [Pipeline de Carga e Normalização via SQL](#-pipeline-de-carga-e-normalização-via-sql)
-  - [Visão Geral dos Scripts SQL](#visão-geral-dos-scripts-sql)
 - [Guia de Execução Passo a Passo](#-guia-de-execução-passo-a-passo)
   - [1. Pré-requisitos](#1-pré-requisitos)
-  - [2. Download e Extração da Base Bruta](#2-download-e-extração-da-base-bruta)
-  - [3. Iniciar o Ambiente de Banco de Dados](#3-iniciar-o-ambiente-de-banco-de-dados)
-  - [4. Copiar o CSV para a Pasta Segura do MySQL](#4-copiar-o-csv-para-a-pasta-segura-do-mysql)
+  - [2. Download da Base Bruta](#2-download-da-base-bruta)
+  - [3. Iniciar os Serviços Docker](#3-iniciar-os-serviços-docker)
+  - [4. Copiar o CSV para a Pasta do MySQL](#4-copiar-o-csv-para-a-pasta-do-mysql)
   - [5. Executar os Scripts de Criação e Carga](#5-executar-os-scripts-de-criação-e-carga)
-  - [6. Validação e Auditoria dos Dados (`check_data.sql`)](#6-validação-e-auditoria-dos-dados-check_datasql)
+  - [6. Validação e Auditoria dos Dados](#6-validação-e-auditoria-dos-dados)
 - [Estrutura do Repositório](#-estrutura-do-repositório)
   - [Visão em Árvore](#visão-em-árvore)
   - [Organização e Papel das Pastas](#organização-e-papel-das-pastas)
 
 ---
 
-## 🌐 Origem dos Dados
+## 🌐 Origem dos Dados e Recorte Temporal
 
 Os microdados foram obtidos através do portal de transparência e dados abertos do **Tribunal de Contas do Estado da Paraíba (TCE-PB)**:
 
 * **Portal**: [TCE-PB Dados Abertos - Dados Consolidados](https://dados-abertos.tce.pb.gov.br/dados-consolidados)
 * **Dataset**: Despesas consolidadas do exercício de 2025 (`despesas-2025.csv`).
-* **Volume Original Bruto**: **2.387.532 linhas** e **40 colunas** desnormalizadas (~1.95 GB).
-* **Recorte Analítico**: **1º Semestre de 2025** (Janeiro a Junho — **1.068.148 registros válidos**).
+* **Volume Bruto Anual**: **2.387.532 linhas** e **40 colunas** desnormalizadas (~1.95 GB).
+* **Corte Temporal Aplicado**: **1º Semestre de 2025** (Janeiro a Junho — **1.068.148 registros validados**).
 
 > [!NOTE]
-> O recorte temporal para o 1º semestre viabiliza um ciclo completo de auditoria fiscal e contábil, permitindo analisar execuções orçamentárias consolidadas mantendo estabilidade de processamento e alta performance transacional.
+> **Racional do Corte Temporal**: A restrição do dataset ao 1º semestre (meses $\le 6$) viabiliza a auditoria contábil de um ciclo fiscal semestral completo e fechado, assegurando viabilidade no carregamento transacional do banco de dados relacional sem estouro de memória ou limites de timeout de conexão.
 
 ---
 
-## 🐳 Arquitetura de Infraestrutura (Docker)
+## 🏛️ Ciclo da Despesa Orçamentária e Arquitetura Relacional
 
-O ambiente de banco de dados e a interface administrativa são provisionados via **Docker Compose**, garantindo ambiente isolado, reprodutível e persistente.
+Conforme a **Lei Federal nº 4.320/1964**, a execução da despesa pública não é uma métrica estática, mas um processo contábil executado em três estágios cronológicos sucessivos:
 
-### Serviços Configurados
+$$ \text{1. Empenho} \longrightarrow \text{2. Liquidação} \longrightarrow \text{3. Pagamento} \Longrightarrow \text{Despesa} $$
 
-| Serviço | Imagem | Porta Host:Container | Descrição |
-| :--- | :--- | :---: | :--- |
-| **`db`** (`mysql_modelagem`) | `mysql:8.0` | `3307:3306` | SGBD Relacional MySQL 8.0 com suporte a volumes persistentes |
-| **`phpmyadmin`** (`phpmyadmin_modelagem`) | `phpmyadmin:latest` | `8080:80` | Interface Web para gestão, execução de queries e visualização |
+1. **Empenho**: Ato emanado por autoridade competente que cria para o Estado a obrigação de pagamento pendente ou não de implemento de condição, reservando a dotação orçamentária necessária.
+2. **Liquidação**: Verificação do direito adquirido pelo credor, baseada em títulos e comprovantes da prestação efetiva do serviço ou entrega do bem.
+3. **Pagamento**: Emissão da ordem bancária e quitação financeira extinguindo a obrigação do poder público.
 
-### Credenciais de Conexão
+### Transição de Data Warehouse (OLAP) para Modelo Relacional Puro (OLTP / 3FN)
 
-* **Host**: `localhost` (ou `127.0.0.1`)
-* **Porta MySQL**: `3307`
-* **Banco de Dados**: `modelagem`
-* **Usuário da Aplicação**: `usuario` | **Senha**: `senhasegura`
-* **Usuário Administrativo**: `root` | **Senha**: `rootpassword`
-* **Painel phpMyAdmin**: [http://localhost:8080](http://localhost:8080)
-* **Volume Persistente**: `mysql_data` montado em `/var/lib/mysql`
+Em substituição a modelos analíticos de Business Intelligence baseados em *Star Schema* (`fato_` e `dim_`), o banco de dados foi estruturado estritamente sob as regras da **3ª Forma Normal (3FN)**:
+
+* **Entidade Central `despesa`**: Consolida os atributos transacionais e os valores monetários das três fases do gasto (`valor_empenhado`, `valor_liquidado`, `valor_pago` tipados em `DECIMAL(15,2)`), associando-os às respectivas entidades de domínio através de Chaves Estrangeiras (FK).
+* **Eliminação de Dependências Transitivas em Localidades**: Criação da tabela `municipio`, associando-se hierarquicamente à `unidade_gestora` (`unidade_gestora.id_municipio` $\rightarrow$ `municipio.id_municipio`).
+* **Desacoplamento de Domínios**: Categorias de contratação (`licitacao`), agentes econômicos (`credor`) e classificadores funcionais e orçamentários padronizados pela STN e MOG foram isolados em tabelas próprias.
 
 ---
 
-## 📐 Arquitetura e Modelo Lógico (EER)
-
-A base transacional desnormalizada original (tabela plana com 40 atributos) apresentava anomalias de redundância funcional e dependências transitivas. 
-
-O modelo foi projetado sob a arquitetura de **Esquema Estrela (Star Schema)**, composto por **1 tabela fato central (`fato_empenhos`)** cercada por **13 tabelas de dimensão** desacopladas e normalizadas até a **3ª Forma Normal (3FN)**.
-
-O arquivo editável do modelo conceitual/lógico está disponível em:
-📁 [`src/modelo_despesas_2025_1semestre.mwb`](file:///c:/Users/eu/Documents/GitHub/modelagem/src/modelo_despesas_2025_1semestre.mwb)
+## 📐 Diagrama Entidade-Relacionamento (EER)
 
 ```mermaid
 erDiagram
-    fato_empenhos }o--|| dim_credor : "cpf_cnpj"
-    fato_empenhos }o--|| dim_unidade_gestora : "codigo_unidade_gestora"
-    fato_empenhos }o--|| dim_unidade_orcamentaria : "codigo_unidade_orcamentaria"
-    fato_empenhos }o--|| dim_funcao : "codigo_funcao"
-    fato_empenhos }o--|| dim_subfuncao : "codigo_subfuncao"
-    fato_empenhos }o--|| dim_programa : "codigo_programa"
-    fato_empenhos }o--|| dim_acao : "codigo_acao"
-    fato_empenhos }o--|| dim_categoria_economica : "codigo_categoria_economica"
-    fato_empenhos }o--|| dim_natureza : "codigo_natureza"
-    fato_empenhos }o--|| dim_modalidade_aplicacao : "codigo_modalidade_aplicacao"
-    fato_empenhos }o--|| dim_elemento_despesa : "codigo_elemento_despesa"
-    fato_empenhos }o--|| dim_fonte_recurso : "codigo_fonte_recurso"
-    fato_empenhos }o--|| dim_co : "co"
+    municipio ||--o{ unidade_gestora : "localiza"
+    unidade_gestora ||--o{ despesa : "executa"
+    credor ||--o{ despesa : "favorecido"
+    licitacao ||--o{ despesa : "origina"
+    funcao ||--o{ despesa : "classifica"
+    programa ||--o{ despesa : "planeja"
+    acao ||--o{ despesa : "destina"
+    categoria_economica ||--o{ despesa : "enquadra"
+    natureza_despesa ||--o{ despesa : "agrupa"
+    modalidade_aplicacao ||--o{ despesa : "aplica"
+    elemento_despesa ||--o{ despesa : "especifica"
+    fonte_recurso ||--o{ despesa : "financia"
 
-    fato_empenhos {
-        bigint id_fato PK "Surrogate Key (AUTO_INCREMENT)"
-        bigint numero_empenho
-        datetime data_empenho
-        string mes
-        double codigo_unidade_gestora FK
-        bigint codigo_unidade_orcamentaria FK
-        bigint cpf_cnpj FK
-        bigint codigo_funcao FK
-        bigint codigo_subfuncao FK
-        bigint codigo_programa FK
-        bigint codigo_acao FK
-        bigint codigo_categoria_economica FK
-        bigint codigo_natureza FK
-        bigint codigo_modalidade_aplicacao FK
-        bigint codigo_elemento_despesa FK
-        bigint codigo_subelemento
-        string codigo_subelemento_exibicao
-        bigint codigo_fonte_recurso FK
-        double co FK
-        bigint numero_licitacao
-        string modalidade_licitacao
-        bigint numero_obra
-        double valor_empenhado
-        double valor_liquidado
-        double valor_pago
-        string historico
-        bigint ano_fonte
+    municipio {
+        int id_municipio PK
+        varchar nome_municipio
     }
 
-    dim_credor {
-        bigint cpf_cnpj PK
-        string nome_credor
+    unidade_gestora {
+        int codigo_unidade_gestora PK
+        varchar nome_unidade_gestora
+        int id_municipio FK
     }
 
-    dim_unidade_gestora {
-        double codigo_unidade_gestora PK
-        string descricao_unidade_gestora
-        string municipio
+    credor {
+        varchar cpf_cnpj PK
+        varchar nome_credor
     }
 
-    dim_unidade_orcamentaria {
-        bigint codigo_unidade_orcamentaria PK
-        string descricao_unidade_orcamentaria
+    licitacao {
+        int id_licitacao PK
+        varchar numero_licitacao
+        varchar modalidade_licitacao
+        varchar numero_obra
     }
 
-    dim_funcao {
-        bigint codigo_funcao PK
-        string funcao
+    funcao {
+        int codigo_funcao PK
+        varchar nome_funcao
     }
 
-    dim_subfuncao {
-        bigint codigo_subfuncao PK
-        string subfuncao
+    programa {
+        int codigo_programa PK
+        varchar nome_programa
     }
 
-    dim_programa {
-        bigint codigo_programa PK
-        string programa
+    acao {
+        varchar codigo_acao PK
+        varchar nome_acao
     }
 
-    dim_acao {
-        bigint codigo_acao PK
-        string acao
+    categoria_economica {
+        int codigo_categoria_economica PK
+        varchar nome_categoria_economica
     }
 
-    dim_categoria_economica {
-        bigint codigo_categoria_economica PK
-        string categoria_economica
+    natureza_despesa {
+        int codigo_natureza PK
+        varchar nome_natureza_despesa
     }
 
-    dim_natureza {
-        bigint codigo_natureza PK
-        string grupo_natureza_despesa
+    modalidade_aplicacao {
+        int codigo_modalidade_aplicacao PK
+        varchar nome_modalidade_aplicacao
     }
 
-    dim_modalidade_aplicacao {
-        bigint codigo_modalidade_aplicacao PK
-        string modalidade_aplicacao
+    elemento_despesa {
+        int codigo_elemento_despesa PK
+        varchar nome_elemento_despesa
     }
 
-    dim_elemento_despesa {
-        bigint codigo_elemento_despesa PK
-        string elemento_despesa
+    fonte_recurso {
+        int codigo_fonte_recurso PK
+        varchar nome_fonte_recurso
     }
 
-    dim_fonte_recurso {
-        bigint codigo_fonte_recurso PK
-        string descricao_fonte_recurso
-    }
-
-    dim_co {
-        double co PK
-        string descricao_co
+    despesa {
+        int id PK "Surrogate Key (AUTO_INCREMENT)"
+        int numero_empenho
+        date data_empenho
+        varchar mes
+        decimal valor_empenhado
+        decimal valor_liquidado
+        decimal valor_pago
+        text historico
+        int codigo_unidade_gestora FK
+        varchar cpf_cnpj FK
+        int id_licitacao FK
+        int codigo_funcao FK
+        int codigo_programa FK
+        varchar codigo_acao FK
+        int codigo_categoria_economica FK
+        int codigo_natureza FK
+        int codigo_modalidade_aplicacao FK
+        int codigo_elemento_despesa FK
+        int codigo_fonte_recurso FK
     }
 ```
+
+O modelo relacional conceitual/lógico original está armazenado em:
+📁 [`src/modelo_2025.mwb`](modelagem/src/modelo_2025.mwb) (ou [`src/scripts/modelo_2025.mwb`](modelagem/src/scripts/modelo_2025.mwb)).  
+O diagrama visual exportado em alta resolução está disponível em:
+🖼️ [`src/img/eer_diagram.png`](modelagem/src/img/eer_diagram.png) (ou [`src/modelo_2025.png`](modelagem/src/modelo_2025.png)).
 
 ---
 
 ## 📋 Dicionário de Tabelas e Entidades
 
-Após a execução do pipeline de modelagem e normalização no 1º semestre de 2025, o banco consolida **14 tabelas**:
+O banco de dados físico implementado consolida **13 tabelas**:
 
-| Tabela | Tipo | Quantidade de Registros | Chave Primária (PK) | Descrição do Domínio |
-| :--- | :---: | :---: | :--- | :--- |
-| **`fato_empenhos`** | **Fato** | **1.068.148** | `id_fato` | Eventos transacionais de despesa, métricas financeiras e chaves estrangeiras |
-| **`dim_credor`** | Dimensão | 168.771 | `cpf_cnpj` | Pessoas físicas, jurídicas e entidades favorecidas dos pagamentos |
-| **`dim_acao`** | Dimensão | 1.104 | `codigo_acao` | Ações orçamentárias (projetos, atividades ou operações especiais) |
-| **`dim_unidade_gestora`** | Dimensão | 622 | `codigo_unidade_gestora` | Entidades, órgãos públicos e respectivos municípios de atuação |
-| **`dim_unidade_orcamentaria`** | Dimensão | 519 | `codigo_unidade_orcamentaria` | Subdivisões orçamentárias executoras dos recursos |
-| **`dim_programa`** | Dimensão | 513 | `codigo_programa` | Programas de governo definidos no Plano Plurianual (PPA) |
-| **`dim_subfuncao`** | Dimensão | 88 | `codigo_subfuncao` | Partições das funções de governo |
-| **`dim_fonte_recurso`** | Dimensão | 64 | `codigo_fonte_recurso` | Mecanismos de financiamento e origem dos recursos públicos |
-| **`dim_elemento_despesa`** | Dimensão | 50 | `codigo_elemento_despesa` | Desdobramento dos objetos de gasto (ex: serviços, material de consumo) |
-| **`dim_funcao`** | Dimensão | 26 | `codigo_funcao` | Maior nível de agregação das áreas de atuação pública (ex: Saúde, Educação) |
-| **`dim_co`** | Dimensão | 15 | `co` | Códigos de Operação vinculados ao controle de destinação orçamentária |
-| **`dim_modalidade_aplicacao`** | Dimensão | 14 | `codigo_modalidade_aplicacao` | Especificação de aplicação direta ou transferências a outras esferas |
-| **`dim_natureza`** | Dimensão | 6 | `codigo_natureza` | Agrupamento orçamentário (Despesas Correntes, Despesas de Capital, etc.) |
-| **`dim_categoria_economica`** | Dimensão | 2 | `codigo_categoria_economica` | Classificação macroeconômica da despesa pública |
-
----
-
-## 🔗 Relacionamentos e Chaves
-
-### Justificativa da Surrogate Key (`id_fato`)
-
-Na contabilidade pública estadual e municipal, o atributo `numero_empenho` **não constitui um identificador universal único**:
-1. **Reinício de Numeração Periódica**: Cada município e cada unidade gestora reinicia a numeração de seus empenhos a partir de `1` a cada novo exercício orçamentário.
-2. **Multiplicidade do Empenho**: Um mesmo empenho pode registrar múltiplos desdobramentos de subelementos de despesa, fontes de recursos e parcelas de liquidação/pagamento dentro do mesmo órgão.
-3. **Desempenho e Integridade Relacional**: Chaves compostas excessivamente amplas (`codigo_unidade_gestora`, `numero_empenho`, `data_empenho`, `codigo_subelemento`, etc.) comprometeriam os custos de indexação e *joins*.
-
-> [!IMPORTANT]
-> A adoção da **Surrogate Key sintética `id_fato` (`BIGINT AUTO_INCREMENT`)** como Chave Primária exclusiva da tabela fato assegura atomicidade estrita, integridade referencial de alta performance e preserva a rastreabilidade original das chaves de negócio contábeis.
-
-### Mapeamento dos Vínculos (1:N Não-Identificadores)
-
-Todas as 13 dimensões relacionam-se com a tabela fato através de vínculos de cardinalidade **1:N (Um para Muitos)** não-identificadores:
-
-| Tabela Dimensão (Lado 1 - PK) | Coluna PK | Coluna FK na `fato_empenhos` (Lado N) | Restrição Relacional |
-| :--- | :--- | :--- | :--- |
-| **`dim_credor`** | `cpf_cnpj` (`BIGINT`) | `cpf_cnpj` | `ON DELETE NO ACTION ON UPDATE NO ACTION` |
-| **`dim_unidade_gestora`** | `codigo_unidade_gestora` (`DOUBLE`) | `codigo_unidade_gestora` | `ON DELETE NO ACTION ON UPDATE NO ACTION` |
-| **`dim_unidade_orcamentaria`** | `codigo_unidade_orcamentaria` (`BIGINT`) | `codigo_unidade_orcamentaria` | `ON DELETE NO ACTION ON UPDATE NO ACTION` |
-| **`dim_funcao`** | `codigo_funcao` (`BIGINT`) | `codigo_funcao` | `ON DELETE NO ACTION ON UPDATE NO ACTION` |
-| **`dim_subfuncao`** | `codigo_subfuncao` (`BIGINT`) | `codigo_subfuncao` | `ON DELETE NO ACTION ON UPDATE NO ACTION` |
-| **`dim_programa`** | `codigo_programa` (`BIGINT`) | `codigo_programa` | `ON DELETE NO ACTION ON UPDATE NO ACTION` |
-| **`dim_acao`** | `codigo_acao` (`BIGINT`) | `codigo_acao` | `ON DELETE NO ACTION ON UPDATE NO ACTION` |
-| **`dim_categoria_economica`** | `codigo_categoria_economica` (`BIGINT`) | `codigo_categoria_economica` | `ON DELETE NO ACTION ON UPDATE NO ACTION` |
-| **`dim_natureza`** | `codigo_natureza` (`BIGINT`) | `codigo_natureza` | `ON DELETE NO ACTION ON UPDATE NO ACTION` |
-| **`dim_modalidade_aplicacao`** | `codigo_modalidade_aplicacao` (`BIGINT`) | `codigo_modalidade_aplicacao` | `ON DELETE NO ACTION ON UPDATE NO ACTION` |
-| **`dim_elemento_despesa`** | `codigo_elemento_despesa` (`BIGINT`) | `codigo_elemento_despesa` | `ON DELETE NO ACTION ON UPDATE NO ACTION` |
-| **`dim_fonte_recurso`** | `codigo_fonte_recurso` (`BIGINT`) | `codigo_fonte_recurso` | `ON DELETE NO ACTION ON UPDATE NO ACTION` |
-| **`dim_co`** | `co` (`DOUBLE`) | `co` | `ON DELETE NO ACTION ON UPDATE NO ACTION` |
+| Tabela | Tipo | Chave Primária (PK) | Chaves Estrangeiras (FK) | Descrição do Domínio |
+| :--- | :--- | :--- | :--- | :--- |
+| **`despesa`** | Central / Transacional | `id` (`INT AI`) | 10 FKs associadas | Execução orçamentária contendo número do empenho, data, mês, histórico e os valores empenhado, liquidado e pago. |
+| **`municipio`** | Domínio / Localidade | `id_municipio` (`INT AI`) | Nenhuma | Municípios do Estado da Paraíba responsáveis pelas administrações públicas. |
+| **`unidade_gestora`** | Entidade Administrativa | `codigo_unidade_gestora` (`INT`) | `id_municipio` | Órgãos executores da despesa (prefeituras, câmaras, fundos municipais). |
+| **`credor`** | Agente Econômico | `cpf_cnpj` (`VARCHAR(255)`) | Nenhuma | Fornecedores, servidores e prestadores de serviços recebedores dos pagamentos. |
+| **`licitacao`** | Processo Administrativo | `id_licitacao` (`INT AI`) | Nenhuma | Identificação do processo licitatório, número do certame, modalidade e registro de obra. |
+| **`funcao`** | Classificador Orçamentário | `codigo_funcao` (`INT`) | Nenhuma | Maior nível de agregação das áreas de atuação do setor público (ex: Saúde, Educação). |
+| **`programa`** | Planejamento Orçamentário | `codigo_programa` (`INT`) | Nenhuma | Programas governamentais estabelecidos no Plano Plurianual (PPA). |
+| **`acao`** | Instrumento de Despesa | `codigo_acao` (`VARCHAR(20)`) | Nenhuma | Projetos, atividades ou operações especiais com finalidade específica. |
+| **`categoria_economica`** | Contabilidade Pública | `codigo_categoria_economica` (`INT`) | Nenhuma | Despesas Correntes (3) ou Despesas de Capital (4). |
+| **`natureza_despesa`** | Contabilidade Pública | `codigo_natureza` (`INT`) | Nenhuma | Grupo de Natureza da Despesa (GND): Pessoal, Juros, Investimentos, etc. |
+| **`modalidade_aplicacao`** | Contabilidade Pública | `codigo_modalidade_aplicacao` (`INT`) | Nenhuma | Especificação da destinação direta ou transferências intergovernamentais. |
+| **`elemento_despesa`** | Contabilidade Pública | `codigo_elemento_despesa` (`INT`) | Nenhuma | Desdobramento específico do gasto (vencimentos, serviços de terceiros, diárias). |
+| **`fonte_recurso`** | Financiamento Público | `codigo_fonte_recurso` (`INT`) | Nenhuma | Mecanismo financeiro e origem orçamentária que custeia a despesa. |
 
 ---
 
-## 🛡️ Estratégia de Mitigação de Valores Nulos
+## 🗑️ Colunas Descartadas e Justificativas de Modelagem
 
-Para eliminar violações de chave estrangeira, garantir consistência relacional e expurgar registros órfãos, foram aplicados tratamentos determinísticos para cada atributo durante a carga SQL:
+A base de dados bruta original continha 40 colunas desnormalizadas. No processo de engenharia reversa e reestruturação para a 3FN, **11 colunas foram descartadas** com base em critérios técnicos e diretrizes acadêmicas:
 
-| Coluna / Atributo | Comportamento na Base Bruta | Método de Tratamento SQL Adotado | Racional Técnico |
-| :--- | :--- | :--- | :--- |
-| **`data_empenho`** | Inconsistência de máscara de formatação no texto (`YYYY-MM-DD` vs `DD/MM/YYYY`) | `COALESCE(STR_TO_DATE(LEFT(data_empenho, 10), '%Y-%m-%d'), STR_TO_DATE(LEFT(data_empenho, 10), '%d/%m/%Y'))` | *Fallback* de máscara dupla garantindo conversão nativa para o tipo `DATETIME`. |
-| **`co`** *(Cód. de Operação)* | ~73% de registros vazios (campo de preenchimento opcional no TCE) | Registro Sentinela (`co = 0`, `'Não Aplicável'`) e `COALESCE(CAST(NULLIF(co, '') AS DOUBLE), 0)` | Evita violações de chave estrangeira inserindo um registro sentinela canônico na dimensão. |
-| **`codigo_unidade_gestora`** | ~0,28% de registros sem identificador de órgão gestor | Registro Sentinela (`codigo_unidade_gestora = 0`, `'Não Informado'`) e `COALESCE(..., 0)` | Preserva integridade de auditoria sem descartar lançamentos de despesa válidos. |
-| **`valor_empenhado`**<br>**`valor_liquidado`**<br>**`valor_pago`** | Formatação textual em moeda brasileira (ex: `1.250,50`) | `COALESCE(CAST(REPLACE(REPLACE(NULLIF(col, ''), '.', ''), ',', '.') AS DOUBLE), 0.0)` | Sanitização de pontuação de milhar e substituição da vírgula decimal antes do *cast* numérico. |
-| **`modalidade_licitacao`** | *Strings* vazias em compras diretas ou dispensas | `COALESCE(modalidade_licitacao, 'Sem Licitação')` | Padronização textual para categorização e consultas agregadas. |
-| **`codigo_subelemento_exibicao`** | Omissão de descrição textual do subelemento | `COALESCE(codigo_subelemento_exibicao, 'SEM SUBELEMENTO')` | Tratamento de integridade textual descritiva. |
-| **`ano_fonte`** | Registros residuais com campo nulo | `COALESCE(CAST(NULLIF(ano_fonte, '') AS SIGNED), 2025)` | Preenchimento automático com o ano-base de referência contábil. |
-| **`historico`** | Valores nulos | `COALESCE(historico, '')` | Garantia de campo texto não-nulo para buscas textuais. |
+| Coluna Bruta Original | Destino no Projeto | Justificativa Técnica e de Modelagem |
+| :--- | :---: | :--- |
+| **`codigo_subfuncao`**<br>**`subfuncao`** | Descartadas | **Eliminação de sub-hierarquias excessivas**: Atendimento direto à diretriz de remover tabelas *"SUB"*. A classificação setorial foi concentrada na entidade principal `funcao`, simplificando as junções sem perda de granularidade funcional. |
+| **`codigo_subelemento`**<br>**`codigo_subelemento_exibicao`** | Descartadas | **Eliminação de desdobramentos redundantes**: O nível analítico contábil oficial da despesa é assegurado pela tabela `elemento_despesa`. A divisão em subelementos gerava excesso de registros textuais nulos na origem. |
+| **`codigo_unidade_orcamentaria`**<br>**`descricao_unidade_orcamentaria`** | Descartadas | **Eliminação de órgão subordinado**: Em conformidade com o feedback de modelagem de evitar múltiplos níveis administrativos, a gestão orçamentária foi unificada no órgão executor formal (`unidade_gestora`). |
+| **`co`** *(Cód. de Operação)*<br>**`descricao_co`** | Descartadas | **Tratamento de completude de dados**: Atributo financeiro auxiliar com mais de 73% de valores nulos/vazios na origem (preenchimento restrito a repasses específicos de Saúde/FUNDEB), dispensável na execução orçamentária geral. |
+| **`ano_fonte`** | Descartada | **Redundância temporal**: Metadado contábil idêntico ao exercício fiscal corrente de 2025 já registrado na data de emissão do empenho (`data_empenho`). |
+| **`uf`** *(da tabela municipio)* | Descartada | **Redundância factual estrita**: O dataset fiscaliza exclusivamente os 223 municípios do Estado da Paraíba (PB). Manter uma coluna `uf` com valor unívoco constituiria redundância dimensional desnecessária. |
+
+---
+
+## 🆔 Tratamento Documental: Preservação de CPF e CNPJ (VARCHAR)
+
+Nas primeiras versões do projeto, o atributo identificador de credores (`cpf_cnpj`) era tipado numericamente como `BIGINT`. Essa abordagem acarretava truncamento involuntário e perda irreparável de dados:
+
+### O Problema da Tipagem Numérica (`BIGINT`)
+
+Na matemática computacional, valores inteiros descartam zeros à esquerda:
+
+$$ \text{CAST}('00000000000191' \text{ AS SIGNED}) \Longrightarrow 191 $$
+
+* O **Banco do Brasil** (CNPJ matriz `00.000.000/0001-91`) era gravado no banco como `191`.
+* CPFs de pessoas físicas com zeros à esquerda (ex: `00008086298167`) tinham seus dígitos iniciais desconsiderados, impedindo buscas literais e validações de máscara.
+
+### A Solução Adotada (`VARCHAR(255)`)
+
+A coluna `cpf_cnpj` foi convertida formalmente para **`VARCHAR(255)`** tanto na tabela de domínio `credor` quanto na tabela transacional `despesa`:
+* Preserva integralmente o formato padronizado de 14 caracteres do TCE-PB (14 dígitos para CNPJ ou 11 dígitos com preenchimento de zeros à esquerda para CPF).
+* Habilita a aplicação direta de validações com algoritmos de dígito verificador da Receita Federal e consultas indexadas via `WHERE cpf_cnpj = '00000000000191'`.
+
+---
+
+## 🛡️ Estratégia de Mitigação de Inconsistências e Nulos
+
+Para manter integridade referencial estrita (`FOREIGN KEY NOT NULL`) e prevenir falhas durante o carregamento de mais de 1 milhão de linhas, foram implementadas as seguintes soluções nos scripts SQL:
+
+| Situação Encontrada | Causa Raiz na Origem | Tratamento Aplicado no Script SQL (`Insert_Equipe_5_2026.2.sql`) |
+| :--- | :--- | :--- |
+| **Inconsistência de Datas** | Alternância de formatos `YYYY-MM-DD` e `DD/MM/YYYY` no CSV | Conversão dinâmica com dupla checagem:<br>`COALESCE(STR_TO_DATE(LEFT(data, 10), '%Y-%m-%d'), STR_TO_DATE(LEFT(data, 10), '%d/%m/%Y'), '2025-01-01')` |
+| **Valores Financeiros Formatados** | Formato de moeda brasileiro (`1.250,50` com pontos de milhar e vírgula decimal) | Sanitização em tempo de carga com conversão monetária:<br>`COALESCE(CAST(REPLACE(REPLACE(val, '.', ''), ',', '.') AS DECIMAL(15,2)), 0.00)` |
+| **Compras sem Licitação** | Despesas diretas ou adiantamentos sem processo licitatório | Criação do Registro Sentinela `id_licitacao = 1` com a descrição `'Sem Licitação'`, associado via `COALESCE`. |
+| **Deslocamento de Colunas (Linhas Órfãs)** | Registros brutos com código 0 e textos vizinhos vazados | Cláusula de proteção `WHERE CAST(codigo AS SIGNED) > 0`, garantindo apenas códigos legítimos e inserindo explicitamente `(0, 'Não Informado')`. |
+| **Unidades Gestoras sem Município** | Registros administrativos com código 0 | Criação do Município Sentinela `id_municipio = 1` (`'Não Informado'`) associado à Unidade Gestora 0. |
+
+---
+
+## 🐳 Arquitetura de Infraestrutura (Docker)
+
+O ambiente é provisionado via **Docker Compose**, garantindo isolamento e compatibilidade multiplataforma.
+
+### Serviços Configurados
+
+| Serviço | Container | Imagem | Porta Host:Container | Descrição |
+| :--- | :--- | :--- | :---: | :--- |
+| **`db`** | `mysql_modelagem` | `mysql:8.0` | `3307:3306` | SGBD Relacional MySQL 8.0 com volume persistente. |
+| **`phpmyadmin`** | `phpmyadmin_modelagem` | `phpmyadmin:latest` | `8080:80` | Interface gráfica Web para inspeção e auditoria. |
+
+### Parâmetros de Conexão
+
+* **Host**: `localhost` (ou `127.0.0.1`)
+* **Porta**: `3307`
+* **Database**: `modelagem`
+* **Usuário Comum**: `usuario` | **Senha**: `senhasegura`
+* **Root**: `root` | **Senha**: `rootpassword`
+* **URL phpMyAdmin**: [http://localhost:8080](http://localhost:8080)
+* **Volume Persistente**: `mysql_data` montado em `/var/lib/mysql`
 
 ---
 
 ## ⚙️ Pipeline de Carga e Normalização via SQL
 
-O ciclo de vida do banco **dispensa scripts externos em lote ou dependências pesadas de bibliotecas de terceiros**, executando todo o processo de ELT, normalização e auditoria diretamente no motor MySQL através de scripts puros:
+O processo dispensa interpretadores intermediários, sendo executado nativamente pelo motor InnoDB do MySQL através de scripts SQL puros:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -285,7 +288,7 @@ O ciclo de vida do banco **dispensa scripts externos em lote ou dependências pe
                                      ▼  LOAD DATA INFILE
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                     Tabela Temporária: temp_despesas                    │
-│                      (Staging com tipagem VARCHAR)                      │
+│                     (Staging com tipagem tolerante)                     │
 └────────────────────────────────────┬────────────────────────────────────┘
                                      │
                                      ▼  DELETE WHERE mes > 6
@@ -296,50 +299,33 @@ O ciclo de vida do banco **dispensa scripts externos em lote ou dependências pe
                    │                                  │
                    ▼                                  ▼
 ┌──────────────────────────────────────┐   ┌──────────────────────────────┐
-│  INSERT IGNORE ... SELECT DISTINCT   │   │ INSERT INTO fato_empenhos    │
-│  - Popula as 13 Tabelas Dimensão     │   │ - Conversão de tipos & casts │
-│  - Cria registros sentinelas (cód 0) │   │ - Tratamento de nulos        │
-│  - Normalização para 2FN e 3FN       │   │ - Geração de Surrogate Key   │
+│  INSERT IGNORE ... SELECT DISTINCT   │   │ INSERT INTO despesa          │
+│  - Popula as 12 tabelas de domínio   │   │ - Mapeia valores empenhado,  │
+│  - Gera localidade (municipio/UG)    │   │   liquidado e pago           │
+│  - Registros sentinelas (código 0)   │   │ - Converte chaves FK         │
 └──────────────────────────────────────┘   └──────────────────────────────┘
                                                           │
                                                           ▼  DROP TABLE
                                            ┌──────────────────────────────┐
-                                           │    Limpeza de Staging        │
-                                           │    Restauração de FKs/Checks │
-                                           └──────────────┬───────────────┘
-                                                          │
-                                                          ▼  AUDITORIA
-                                           ┌──────────────────────────────┐
-                                           │ check_data.sql               │
-                                           │ check_nulos.sql              │
-                                           │ - Validação e Integridade    │
+                                           │ Limpeza da Tabela de Staging │
+                                           │ Restauração de Checks e FKs  │
                                            └──────────────────────────────┘
 ```
 
-### Visão Geral dos Scripts SQL
+1. **[`Create_Equipe_5_2026.2.sql`](modelagem/src/scripts/Create_Equipe_5_2026.2.sql) (DDL)**:
+   - Cria o schema `modelagem` com charset `utf8mb4`.
+   - Cria as 13 tabelas relacionais, chaves primárias, chaves estrangeiras com restrições de integridade referencial (`ON DELETE NO ACTION ON UPDATE NO ACTION`) e índices secundários de consulta (`INDEX`).
 
-A pasta [`src/scripts/`](file:///c:/Users/eu/Documents/GitHub/modelagem/src/scripts/) reúne todos os scripts que coordenam a criação, manipulação e auditoria do banco:
+2. **[`Insert_Equipe_5_2026.2.sql`](modelagem/src/scripts/Insert_Equipe_5_2026.2.sql) (DML)**:
+   - Criação da staging table `temp_despesas`.
+   - Ingestão massiva em alta velocidade via `LOAD DATA INFILE`.
+   - Recorte analítico do 1º semestre via `DELETE FROM temp_despesas WHERE CAST(LEFT(mes, 2) AS SIGNED) > 6`.
+   - Povoamento idempotente das 12 tabelas de domínio com `INSERT IGNORE ... SELECT DISTINCT`.
+   - Povoamento da tabela central `despesa` aplicando casts, conversões e mapeamentos de integridade referencial.
+   - Descarte automático da staging table (`DROP TABLE temp_despesas`) e restauração das restrições.
 
-1. **[`Create_Equipe_5_2026.2.sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/src/scripts/Create_Equipe_5_2026.2.sql) (DDL - Definição)**:
-   - Script gerado via *Forward Engineering* do MySQL Workbench.
-   - Criação do esquema `modelagem` com suporte a `utf8mb4`.
-   - Declaração formal das 14 tabelas, restrições de integridade referencial (`FOREIGN KEY`), chaves primárias e índices secundários (`INDEX`) otimizados para consulta analítica.
-
-2. **[`Insert_Equipe_5_2026.2.sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/src/scripts/Insert_Equipe_5_2026.2.sql) (DML - Carga e Normalização)**:
-   - **Staging Table**: Criação de `temp_despesas` com tipos tolerantes a variações textuais.
-   - **Ingestão Massiva**: Carga do CSV através de `LOAD DATA INFILE '/var/lib/mysql-files/despesas-2025.csv'` com delimitador `;`.
-   - **Filtro Semestral**: Expurgador direto de dados fora do 1º semestre via `DELETE FROM temp_despesas WHERE CAST(LEFT(mes, 2) AS SIGNED) > 6`.
-   - **Normalização Dimensional**: Comandos atômicos `INSERT IGNORE ... SELECT DISTINCT` para extração das 13 dimensões sem redundâncias.
-   - **Carga Transacional Otimizada**: Desativação temporária de validações secundárias (`SET autocommit = 0; SET UNIQUE_CHECKS = 0; SET FOREIGN_KEY_CHECKS = 0;`), garantindo alta velocidade de inserção na `fato_empenhos`.
-   - **Limpeza**: Descarte automático da tabela de staging (`DROP TABLE temp_despesas`) e restauração das restrições de integridade.
-
-3. **[`check_data.sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/src/scripts/check_data.sql) (DQL - Validação e Auditoria dos Dados)**:
-   - Validação da volumetria final consolidada na tabela fato (esperado: **1.068.148 linhas**).
-   - Auditoria de integridade para constatar ausência total de nulos na chave primária (`id_fato`), datas e foreign keys críticas.
-   - Consulta analítica de teste executando *joins* relacionais entre a tabela fato e as dimensões `dim_unidade_gestora` e `dim_credor`.
-
-4. **[`check_nulos.sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/src/scripts/check_nulos.sql) (DQL - Auditoria Geral de Completude)**:
-   - Varredura exaustiva de consistência e contagem de nulos através de todas as 27 colunas da tabela `fato_empenhos`.
+3. **[`check_data.sql`](modelagem/src/scripts/check_data.sql) / [`check_nulos.sql`](modelagem/src/scripts/check_nulos.sql) (DQL)**:
+   - Scripts de verificação de volumetria, auditoria de nulos e integridade relacional.
 
 ---
 
@@ -347,36 +333,35 @@ A pasta [`src/scripts/`](file:///c:/Users/eu/Documents/GitHub/modelagem/src/scri
 
 ### 1. Pré-requisitos
 
-* [Docker Desktop](https://www.docker.com/) instalado e em execução no sistema.
-* [MySQL Workbench](https://dev.mysql.com/downloads/workbench/) (opcional, para visualização do diagrama `.mwb`).
+* [Docker Desktop](https://www.docker.com/) instalado e em execução.
+* [MySQL Workbench](https://dev.mysql.com/downloads/workbench/) (opcional, para visualização de diagrama).
 
-### 2. Download e Extração da Base Bruta
+### 2. Download da Base Bruta
 
-1. Acesse o portal de dados abertos: [TCE-PB Dados Consolidados](https://dados-abertos.tce.pb.gov.br/dados-consolidados).
-2. Na seção **Despesas**, localize o exercício de **2025** e efetue o download do arquivo compactado.
-3. Extraia o conteúdo e posicione o arquivo CSV dentro da pasta `src/raw/` com o seguinte nome:
+1. Acesse o portal: [TCE-PB Dados Abertos - Consolidados](https://dados-abertos.tce.pb.gov.br/dados-consolidados).
+2. Na seção **Despesas**, baixe o pacote do exercício de **2025**.
+3. Extraia o CSV para a pasta `src/raw/` com o nome exato:
    ```plaintext
    src/raw/despesas-2025.csv
    ```
 
-### 3. Iniciar o Ambiente de Banco de Dados
+### 3. Iniciar os Serviços Docker
 
-No terminal, navegue até o diretório `src/` e inicialize os containers do Docker Compose:
+Na pasta `src/`, suba os containers via Docker Compose:
 
 ```bash
 cd src
 docker compose up -d
 ```
 
-Verifique se os containers `mysql_modelagem` e `phpmyadmin_modelagem` estão ativos (`Up`):
-
+Verifique o status dos serviços:
 ```bash
 docker compose ps
 ```
 
-### 4. Copiar o CSV para a Pasta Segura do MySQL
+### 4. Copiar o CSV para a Pasta do MySQL
 
-Por diretrizes de segurança, o MySQL bloqueia operações de `LOAD DATA INFILE` fora do diretório restrito (`secure-file-priv`). Execute a cópia do arquivo CSV da máquina hospedeira para dentro do container:
+O MySQL restringe cargas locais fora do caminho seguro (`secure-file-priv`). Transfira o arquivo para o container:
 
 ```bash
 docker cp raw/despesas-2025.csv mysql_modelagem:/var/lib/mysql-files/despesas-2025.csv
@@ -384,76 +369,63 @@ docker cp raw/despesas-2025.csv mysql_modelagem:/var/lib/mysql-files/despesas-20
 
 ### 5. Executar os Scripts de Criação e Carga
 
-Execute os comandos a partir da **raiz do repositório**:
+Execute os comandos a partir da raiz do repositório:
 
 #### 🪟 Windows (PowerShell):
 
 ```powershell
-# 1. Criação das tabelas, índices e chaves relacionais
+# 1. Criação do Banco de Dados e Tabelas (DDL)
 Get-Content src/scripts/Create_Equipe_5_2026.2.sql | docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem
 
-# 2. Carga massiva, filtro do 1º semestre e normalização dimensional
+# 2. Carga, Filtro do 1º Semestre e Normalização Relacional (DML)
 Get-Content src/scripts/Insert_Equipe_5_2026.2.sql | docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem
 ```
 
-#### 🐧 Linux / macOS (Bash) ou Windows (CMD):
+#### 🐧 Linux / macOS (Bash) ou Prompt de Comando (CMD):
 
 ```bash
-# 1. Criação das tabelas, índices e chaves relacionais
+# 1. Criação do Banco de Dados e Tabelas (DDL)
 docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem < src/scripts/Create_Equipe_5_2026.2.sql
 
-# 2. Carga massiva, filtro do 1º semestre e normalização dimensional
+# 2. Carga, Filtro do 1º Semestre e Normalização Relacional (DML)
 docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem < src/scripts/Insert_Equipe_5_2026.2.sql
 ```
 
-### 6. Validação e Auditoria dos Dados (`check_data.sql`)
+### 6. Validação e Auditoria dos Dados
 
-Para homologar a carga e auditar a consistência do banco de dados, execute o script [`src/scripts/check_data.sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/src/scripts/check_data.sql) diretamente no container:
-
-#### 🪟 Windows (PowerShell):
-```powershell
-Get-Content src/scripts/check_data.sql | docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem
-```
-
-#### 🐧 Linux / macOS (Bash) ou Windows (CMD):
-```bash
-docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem < src/scripts/check_data.sql
-```
-
-Alternativamente, você pode abrir o phpMyAdmin em [http://localhost:8080](http://localhost:8080) (Usuário: `usuario`, Senha: `senhasegura`) ou o MySQL Workbench na porta `3307` e inspecionar os resultados das 3 baterias de validação contidas no script:
+Abra o phpMyAdmin em [http://localhost:8080](http://localhost:8080) ou conecte o Workbench na porta `3307` e execute a verificação contábil:
 
 ```sql
 USE `modelagem`;
 
--- 1. Total consolidado da fato (esperado: exatamente 1.068.148 registros no 1º semestre)
-SELECT COUNT(*) AS total_fato FROM fato_empenhos;
+-- 1. Total de registros da tabela despesa (esperado: exatamente 1.068.148 linhas no 1º semestre)
+SELECT COUNT(*) AS total_despesas FROM despesa;
 
--- 2. Auditoria de integridade (deve retornar 0 para todas as colunas de chave e datas críticas)
+-- 2. Auditoria de ausência de nulos em chaves primárias e campos obrigatórios
 SELECT 
-    COUNT(*) - COUNT(id_fato) AS nulos_pk,
+    COUNT(*) - COUNT(id) AS nulos_id,
     COUNT(*) - COUNT(data_empenho) AS nulos_data,
     COUNT(*) - COUNT(codigo_unidade_gestora) AS nulos_ug,
-    COUNT(*) - COUNT(co) AS nulos_co
-FROM fato_empenhos;
+    COUNT(*) - COUNT(cpf_cnpj) AS nulos_credor
+FROM despesa;
 
--- 3. Consulta analítica de teste relacionando a Fato e as Dimensões
+-- 3. Consulta analítica integrando a execução dos 3 estágios da despesa
 SELECT 
-    f.numero_empenho,
-    f.data_empenho,
-    ug.descricao_unidade_gestora,
-    ug.municipio,
+    d.numero_empenho,
+    d.data_empenho,
+    m.nome_municipio,
+    ug.nome_unidade_gestora,
     c.nome_credor,
-    f.valor_empenhado,
-    f.valor_pago
-FROM fato_empenhos f
-JOIN dim_unidade_gestora ug ON f.codigo_unidade_gestora = ug.codigo_unidade_gestora
-JOIN dim_credor c ON f.cpf_cnpj = c.cpf_cnpj
-ORDER BY f.data_empenho DESC
+    d.valor_empenhado,
+    d.valor_liquidado,
+    d.valor_pago
+FROM despesa d
+JOIN unidade_gestora ug ON d.codigo_unidade_gestora = ug.codigo_unidade_gestora
+JOIN municipio m ON ug.id_municipio = m.id_municipio
+JOIN credor c ON d.cpf_cnpj = c.cpf_cnpj
+ORDER BY d.data_empenho DESC
 LIMIT 10;
 ```
-
-> [!TIP]
-> Caso necessite inspecionar nulos em todos os 27 atributos da fato simultaneamente, execute também o script complementar [`src/scripts/check_nulos.sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/src/scripts/check_nulos.sql).
 
 ---
 
@@ -463,29 +435,29 @@ LIMIT 10;
 
 ```plaintext
 modelagem/
-├── README.md                              # Documentação técnica e guia operacional
+├── README.md                              # Documentação técnica e guia operacional do projeto
 ├── LICENSE                                # Termos de licença de uso (GPL v3)
 │
-├── src/                                   # Núcleo de desenvolvimento do projeto
-│   ├── docker-compose.yml                 # Definição dos containers MySQL 8.0 e phpMyAdmin
-│   ├── modelo_despesas_2025_1semestre.mwb # Modelo dimensional e DER no MySQL Workbench
+├── src/                                   # Diretório principal de desenvolvimento
+│   ├── docker-compose.yml                 # Manifesto Docker (MySQL 8.0 e phpMyAdmin)
+│   ├── modelo_2025.mwb                    # Modelo EER relacional editável do MySQL Workbench
 │   │
-│   ├── img/                               # Imagens e diagramas conceituais exportados
-│   │   └── eer_diagram.png                # Diagrama relacional visual do Star Schema
+│   ├── img/                               # Diagramas visuais exportados
+│   │   └── eer_diagram.png                # Imagem exportada do modelo relacional (DER / 3FN)
 │   │
-│   ├── raw/                               # Diretório de dados brutos (CSV)
-│   │   ├── despesas-2025.csv              # Microdados brutos de despesas (ignorado no Git)
-│   │   └── receitas-2025.csv              # Microdados brutos de receitas (ignorado no Git)
+│   ├── raw/                               # Diretório de dados brutos (ignorado no Git)
+│   │   ├── despesas-2025.csv              # CSV consolidado de despesas 2025 do TCE-PB
+│   │   └── receitas-2025.csv              # CSV consolidado de receitas 2025 do TCE-PB
 │   │
-│   ├── scripts/                           # Automação de banco de dados via SQL puro
-│   │   ├── Create_Equipe_5_2026.2.sql     # DDL: Criação do schema, tabelas, PKs, FKs e índices
-│   │   ├── Insert_Equipe_5_2026.2.sql     # DML: Staging, carga, filtro temporal e 3FN
-│   │   ├── check_data.sql                 # DQL: Validação de volumetria, nulos e joins analíticos
-│   │   └── check_nulos.sql                # DQL: Auditoria exaustiva de nulos nas 27 colunas da fato
+│   ├── scripts/                           # Scripts SQL de automação e engenharia de dados
+│   │   ├── Create_Equipe_5_2026.2.sql     # DDL: Definição de tabelas, PKs, FKs e restrições
+│   │   ├── Insert_Equipe_5_2026.2.sql     # DML: Staging, carga, filtro semestral e 3FN
+│   │   ├── check_data.sql                 # DQL: Validação e auditoria dos dados
+│   │   └── check_nulos.sql                # DQL: Auditoria exaustiva de consistência e nulos
 │   │
-│   └── python/                            # Análises exploratórias e prototipagem
-│       ├── consolidacao.ipynb             # Notebook de consolidação histórica multianual
-│       └── normalizacao.ipynb             # Notebook com testes e análises de normalização
+│   └── python/                            # Análise exploratória preliminar
+│       ├── consolidacao.ipynb             # Notebook de inspeção e consolidação multianual
+│       └── normalizacao.ipynb             # Notebook com prototipagem inicial de normalização
 │
 └── zips/                                  # Arquivos compactados originais (opcional)
     ├── despesas-2025.zip                  # Download bruto de despesas do TCE-PB
@@ -494,16 +466,14 @@ modelagem/
 
 ### Organização e Papel das Pastas
 
-Para manter a separação clara de responsabilidades, o repositório é estruturado da seguinte forma:
-
 | Diretório / Arquivo | Classificação | Descrição e Finalidade Técnica |
 | :--- | :--- | :--- |
-| **`/` (Raiz)** | Governança | Abriga a documentação principal ([`README.md`](file:///c:/Users/eu/Documents/GitHub/modelagem/README.md)), termos de licença ([`LICENSE`](file:///c:/Users/eu/Documents/GitHub/modelagem/LICENSE)) e configurações do repositório Git. |
-| **`src/`** | Núcleo do Projeto | Diretório central que reúne infraestrutura, modelagem relacional, scripts SQL de automação e códigos de apoio. |
+| **`/` (Raiz)** | Governança | Abriga a documentação principal ([`README.md`](modelagem/README.md)), termos de licença ([`LICENSE`](modelagem/LICENSE)) e configurações do repositório Git. |
+| **`src/`** | Núcleo do Projeto | Diretório central que reúne infraestrutura, modelagem relacional, scripts SQL de automação e cadernos de apoio. |
 | **`src/docker-compose.yml`** | Infraestrutura | Manifesto de orquestração Docker contendo o banco MySQL 8.0 (porta 3307) e o painel phpMyAdmin (porta 8080) com persistência em volume. |
-| **`src/modelo_despesas_...mwb`** | Modelagem EER | Arquivo fonte editável do MySQL Workbench com o Esquema Estrela, definições de cardinalidade, índices e integridade referencial. |
-| **`src/img/`** | Artefatos Visuais | Diagramas de entidade-relacionamento (DER/EER) exportados em alta resolução para documentação e relatórios técnicos. |
-| **`src/raw/`** | *Data Lake / Ingestão* | Pasta destinada a receber os arquivos brutos extraídos do portal de dados abertos do TCE-PB (`despesas-2025.csv`). Por se tratar de bases volumosas (>1.9 GB), os arquivos são ignorados pelo Git via `.gitignore`. |
-| **`src/scripts/`** | Engenharia SQL | **Coração do banco de dados**: contém scripts SQL nativos divididos em DDL (criação), DML (ingestão e normalização 3FN) e DQL ([`check_data.sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/src/scripts/check_data.sql) e [`check_nulos.sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/src/scripts/check_nulos.sql) para validação e auditoria). |
+| **`src/modelo_2025.mwb`** | Modelagem EER | Arquivo fonte editável do MySQL Workbench com o modelo relacional normalizado até a 3FN, chaves e restrições. |
+| **`src/img/`** | Artefatos Visuais | Diagramas de entidade-relacionamento (DER/EER) exportados em alta resolução ([`eer_diagram.png`](modelagem/src/img/eer_diagram.png)) para documentação e relatórios. |
+| **`src/raw/`** | *Data Lake / Ingestão* | Pasta destinada a receber os arquivos brutos extraídos do portal de dados abertos do TCE-PB (`despesas-2025.csv`). Arquivos ignorados pelo Git via `.gitignore` devido ao tamanho (>1.9 GB). |
+| **`src/scripts/`** | Engenharia SQL | **Coração do banco de dados**: contém scripts SQL nativos divididos em DDL ([`Create_Equipe_5_2026.2.sql`](modelagem/src/scripts/Create_Equipe_5_2026.2.sql)), DML ([`Insert_Equipe_5_2026.2.sql`](modelagem/src/scripts/Insert_Equipe_5_2026.2.sql)) e DQL ([`check_data.sql`](modelagem/src/scripts/check_data.sql) e [`check_nulos.sql`](modelagem/src/scripts/check_nulos.sql) para validação e auditoria). |
 | **`src/python/`** | *Data Science / EDA* | Cadernos Jupyter (`.ipynb`) utilizados na fase exploratória inicial de análise estatística, consolidação multianual e prototipagem dos tratamentos de dados. |
-| **`zips/`** | Arquivos Compactados | Pasta de conveniência local para armazenamento dos arquivos compactados baixados diretamente do portal governamental antes da descompactação. |
+| **`zips/`** | Arquivos Compactados | Pasta de conveniência local para armazenamento dos arquivos compactados baixados diretamente do portal governamental. |
