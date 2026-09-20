@@ -324,9 +324,6 @@ O processo dispensa interpretadores intermediários, sendo executado nativamente
    - Povoamento da tabela central `despesa` aplicando casts, conversões e mapeamentos de integridade referencial.
    - Descarte automático da staging table (`DROP TABLE temp_despesas`) e restauração das restrições.
 
-3. **[`check_data.sql`](modelagem/src/scripts/check_data.sql) / [`check_nulos.sql`](modelagem/src/scripts/check_nulos.sql) (DQL)**:
-   - Scripts de verificação de volumetria, auditoria de nulos e integridade relacional.
-
 ---
 
 ## 🚀 Guia de Execução Passo a Passo
@@ -452,8 +449,6 @@ modelagem/
 │   ├── scripts/                           # Scripts SQL de automação e engenharia de dados
 │   │   ├── Create_Equipe_5_2026.2.sql     # DDL: Definição de tabelas, PKs, FKs e restrições
 │   │   ├── Insert_Equipe_5_2026.2.sql     # DML: Staging, carga, filtro semestral e 3FN
-│   │   ├── check_data.sql                 # DQL: Validação e auditoria dos dados
-│   │   └── check_nulos.sql                # DQL: Auditoria exaustiva de consistência e nulos
 │   │
 │   └── python/                            # Análise exploratória preliminar
 │       ├── consolidacao.ipynb             # Notebook de inspeção e consolidação multianual
