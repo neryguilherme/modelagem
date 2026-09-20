@@ -1,0 +1,227 @@
+{
+  "$jsonSchema": {
+    "title": "despesa",
+    "bsonType": "object",
+    "properties": {
+      "_id": {
+        "bsonType": "objectId"
+      },
+      "id": {
+        "bsonType": "int"
+      },
+      "numeroEmpenho": {
+        "bsonType": "int"
+      },
+      "dataEmpenho": {
+        "bsonType": "date"
+      },
+      "mes": {
+        "bsonType": [
+          "string",
+          "null"
+        ]
+      },
+      "valorEmpenhado": {
+        "bsonType": "decimal"
+      },
+      "valorLiquidado": {
+        "bsonType": "decimal"
+      },
+      "valorPago": {
+        "bsonType": "decimal"
+      },
+      "historico": {
+        "bsonType": [
+          "string",
+          "null"
+        ]
+      },
+      "codigoUnidadeGestora": {
+        "bsonType": "int"
+      },
+      "cpfCnpj": {
+        "bsonType": "string"
+      },
+      "idLicitacao": {
+        "bsonType": [
+          "int",
+          "null"
+        ]
+      },
+      "codigoFuncao": {
+        "bsonType": "int"
+      },
+      "codigoPrograma": {
+        "bsonType": "int"
+      },
+      "codigoAcao": {
+        "bsonType": "string"
+      },
+      "codigoCategoriaEconomica": {
+        "bsonType": "int"
+      },
+      "codigoNatureza": {
+        "bsonType": "int"
+      },
+      "codigoModalidadeAplicacao": {
+        "bsonType": "int"
+      },
+      "codigoElementoDespesa": {
+        "bsonType": "int"
+      },
+      "codigoFonteRecurso": {
+        "bsonType": "int"
+      },
+      "unidadeGestora": {
+        "bsonType": "object",
+        "properties": {
+          "codigoUnidadeGestora": {
+            "bsonType": "int"
+          },
+          "nomeUnidadeGestora": {
+            "bsonType": "string"
+          },
+          "idMunicipio": {
+            "bsonType": "int"
+          },
+          "municipio": {
+            "bsonType": "object",
+            "properties": {
+              "idMunicipio": {
+                "bsonType": "int"
+              },
+              "nomeMunicipio": {
+                "bsonType": "string"
+              }
+            }
+          }
+        }
+      },
+      "fonteRecurso": {
+        "bsonType": "object",
+        "properties": {
+          "codigoFonteRecurso": {
+            "bsonType": "int"
+          },
+          "nomeFonteRecurso": {
+            "bsonType": "string"
+          }
+        }
+      },
+      "licitacao": {
+        "bsonType": "object",
+        "properties": {
+          "idLicitacao": {
+            "bsonType": "int"
+          },
+          "numeroLicitacao": {
+            "bsonType": [
+              "string",
+              "null"
+            ]
+          },
+          "modalidadeLicitacao": {
+            "bsonType": [
+              "string",
+              "null"
+            ]
+          },
+          "numeroObra": {
+            "bsonType": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "modalidadeAplicacao": {
+        "bsonType": "object",
+        "properties": {
+          "codigoModalidadeAplicacao": {
+            "bsonType": "int"
+          },
+          "nomeModalidadeAplicacao": {
+            "bsonType": "string"
+          }
+        }
+      },
+      "credor": {
+        "bsonType": "object",
+        "properties": {
+          "cpfCnpj": {
+            "bsonType": "string"
+          },
+          "nomeCredor": {
+            "bsonType": "string"
+          }
+        }
+      },
+      "acao": {
+        "bsonType": "object",
+        "properties": {
+          "codigoAcao": {
+            "bsonType": "string"
+          },
+          "nomeAcao": {
+            "bsonType": "string"
+          }
+        }
+      },
+      "elementoDespesa": {
+        "bsonType": "object",
+        "properties": {
+          "codigoElementoDespesa": {
+            "bsonType": "int"
+          },
+          "nomeElementoDespesa": {
+            "bsonType": "string"
+          }
+        }
+      },
+      "categoriaEconomica": {
+        "bsonType": "object",
+        "properties": {
+          "codigoCategoriaEconomica": {
+            "bsonType": "int"
+          },
+          "nomeCategoriaEconomica": {
+            "bsonType": "string"
+          }
+        }
+      },
+      "funcao": {
+        "bsonType": "object",
+        "properties": {
+          "codigoFuncao": {
+            "bsonType": "int"
+          },
+          "nomeFuncao": {
+            "bsonType": "string"
+          }
+        }
+      },
+      "naturezaDespesa": {
+        "bsonType": "object",
+        "properties": {
+          "codigoNatureza": {
+            "bsonType": "int"
+          },
+          "nomeNaturezaDespesa": {
+            "bsonType": "string"
+          }
+        }
+      },
+      "programa": {
+        "bsonType": "object",
+        "properties": {
+          "codigoPrograma": {
+            "bsonType": "int"
+          },
+          "nomePrograma": {
+            "bsonType": "string"
+          }
+        }
+      }
+    }
+  }
+}
