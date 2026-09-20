@@ -1,14 +1,17 @@
-# 📊 Modelagem e Engenharia de Banco de Dados Relacional (OLTP / 3FN): Despesas Públicas (TCE-PB 2025)
+# 📊 Modelagem e Engenharia de Banco de Dados Relacional (OLTP / 3FN) e NoSQL (MongoDB): Despesas Públicas (TCE-PB 2025)
 
 [![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Latest-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Relational Migrator](https://img.shields.io/badge/MongoDB-Relational_Migrator-00684A?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/products/tools/relational-migrator)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![phpMyAdmin](https://img.shields.io/badge/phpMyAdmin-Latest-6C78AF?style=for-the-badge&logo=phpmyadmin&logoColor=white)](https://www.phpmyadmin.net/)
+[![Mongo Express](https://img.shields.io/badge/Mongo_Express-Latest-13AA52?style=for-the-badge&logo=mongodb&logoColor=white)](https://github.com/mongo-express/mongo-express)
 [![Workbench](https://img.shields.io/badge/MySQL_Workbench-8.0-00758F?style=for-the-badge&logo=mysql&logoColor=white)](https://dev.mysql.com/downloads/workbench/)
-[![Modelo](https://img.shields.io/badge/Arquitetura-OLTP_%7C_3FN-success?style=for-the-badge)](https://en.wikipedia.org/wiki/Third_normal_form)
+[![Modelo](https://img.shields.io/badge/Arquitetura-OLTP_%7C_3FN_%26_NoSQL-success?style=for-the-badge)](https://en.wikipedia.org/wiki/Third_normal_form)
 
-Projeto acadêmico de modelagem e engenharia de banco de dados relacional transacional (**OLTP**), estritamente normalizado até a **3ª Forma Normal (3FN)**, desenvolvido a partir dos microdados públicos de execução orçamentária do **Tribunal de Contas do Estado da Paraíba (TCE-PB)** para o **1º Semestre de 2025**.
+Projeto acadêmico de modelagem e engenharia de banco de dados relacional transacional (**OLTP**), estritamente normalizado até a **3ª Forma Normal (3FN)**, e sua posterior modernização para modelo orientado a documentos (**NoSQL / MongoDB**), desenvolvido a partir dos microdados públicos de execução orçamentária do **Tribunal de Contas do Estado da Paraíba (TCE-PB)** para o **1º Semestre de 2025**.
 
-O projeto estrutura o ciclo de vida da execução da despesa pública (**Empenho**, **Liquidação** e **Pagamento**) em torno de uma entidade transacional central (`despesa`), decomposta em 12 tabelas de domínio e localidade. O fluxo inclui a concepção lógica no MySQL Workbench, conteinerização via **Docker Compose** e pipeline de carga, higienização, filtro temporal e auditoria executado integralmente via scripts SQL puros.
+O projeto estrutura o ciclo de vida da execução da despesa pública (**Empenho**, **Liquidação** e **Pagamento**) em torno de uma entidade transacional central (`despesa`), decomposta em 12 tabelas de domínio e localidade no ambiente relacional, e migrada para o MongoDB através do padrão **Extended Reference Pattern** com auxílio do **MongoDB Relational Migrator**. O ecossistema completo conta com conteinerização integrada via **Docker Compose**, scripts SQL puros de higienização/carga e esquemas NoSQL validados.
 
 ---
 
@@ -23,13 +26,17 @@ O projeto estrutura o ciclo de vida da execução da despesa pública (**Empenho
 - [Estratégia de Mitigação de Inconsistências e Nulos](#️-estratégia-de-mitigação-de-inconsistências-e-nulos)
 - [Arquitetura de Infraestrutura (Docker)](#-arquitetura-de-infraestrutura-docker)
 - [Pipeline de Carga e Normalização via SQL](#-pipeline-de-carga-e-normalização-via-sql)
-- [Guia de Execução Passo a Passo](#-guia-de-execução-passo-a-passo)
+- [Guia de Execução Passo a Passo (Ambiente Relacional / MySQL)](#-guia-de-execução-passo-a-passo-ambiente-relacional--mysql)
   - [1. Pré-requisitos](#1-pré-requisitos)
   - [2. Download da Base Bruta](#2-download-da-base-bruta)
   - [3. Iniciar os Serviços Docker](#3-iniciar-os-serviços-docker)
   - [4. Copiar o CSV para a Pasta do MySQL](#4-copiar-o-csv-para-a-pasta-do-mysql)
   - [5. Executar os Scripts de Criação e Carga](#5-executar-os-scripts-de-criação-e-carga)
   - [6. Validação e Auditoria dos Dados](#6-validação-e-auditoria-dos-dados)
+- [Modelagem NoSQL e Migração para MongoDB](#-modelagem-nosql-e-migração-para-mongodb)
+  - [Diagrama da Arquitetura Orientada a Documentos](#diagrama-da-arquitetura-orientada-a-documentos)
+  - [Racional Arquitetural: Agrupamento em despesa vs. Coleção credor](#racional-arquitetural-agrupamento-em-despesa-vs-coleção-credor)
+  - [Guia de Migração e Carga no MongoDB via Relational Migrator](#guia-de-migração-e-carga-no-mongodb-via-relational-migrator)
 - [Estrutura do Repositório](#-estrutura-do-repositório)
   - [Visão em Árvore](#visão-em-árvore)
   - [Organização e Papel das Pastas](#organização-e-papel-das-pastas)
@@ -174,9 +181,9 @@ erDiagram
 ```
 
 O modelo relacional conceitual/lógico original está armazenado em:
-📁 [`src/modelo_2025.mwb`](modelagem/src/modelo_2025.mwb) (ou [`src/scripts/modelo_2025.mwb`](modelagem/src/scripts/modelo_2025.mwb)).  
+📁 [`src/scripts/sql/modelo_2025.mwb`](ou [`src/modelo_2025.mwb`]).  
 O diagrama visual exportado em alta resolução está disponível em:
-🖼️ [`src/img/eer_diagram.png`](modelagem/src/img/eer_diagram.png) (ou [`src/modelo_2025.png`](modelagem/src/modelo_2025.png)).
+🖼️ [`src/img/eer_diagram.png`].
 
 ---
 
@@ -254,24 +261,27 @@ Para manter integridade referencial estrita (`FOREIGN KEY NOT NULL`) e prevenir 
 
 ## 🐳 Arquitetura de Infraestrutura (Docker)
 
-O ambiente é provisionado via **Docker Compose**, garantindo isolamento e compatibilidade multiplataforma.
+O ambiente completo de bancos de dados relacionais e NoSQL, bem como suas respectivas interfaces de gestão gráfica, é provisionado via **Docker Compose** integrado na mesma rede interna (`docker-compose.yml`), garantindo isolamento e portabilidade:
 
 ### Serviços Configurados
 
 | Serviço | Container | Imagem | Porta Host:Container | Descrição |
 | :--- | :--- | :--- | :---: | :--- |
 | **`db`** | `mysql_modelagem` | `mysql:8.0` | `3307:3306` | SGBD Relacional MySQL 8.0 com volume persistente. |
-| **`phpmyadmin`** | `phpmyadmin_modelagem` | `phpmyadmin:latest` | `8080:80` | Interface gráfica Web para inspeção e auditoria. |
+| **`phpmyadmin`** | `phpmyadmin_modelagem` | `phpmyadmin:latest` | `8080:80` | Interface gráfica Web para inspeção e auditoria SQL. |
+| **`mongodb`** | `mongodb_modelagem` | `mongo:latest` | `27017:27017` | SGBD NoSQL orientado a documentos com autenticação ativada. |
+| **`mongo-express`** | `mongo_express_modelagem` | `mongo-express:latest` | `8081:8081` | Interface Web para exploração e visualização de coleções BSON/JSON. |
 
 ### Parâmetros de Conexão
 
-* **Host**: `localhost` (ou `127.0.0.1`)
-* **Porta**: `3307`
-* **Database**: `modelagem`
-* **Usuário Comum**: `usuario` | **Senha**: `senhasegura`
-* **Root**: `root` | **Senha**: `rootpassword`
+* **MySQL Host / Porta**: `localhost:3307` | **Database**: `modelagem`
+  * **Usuário Comum**: `usuario` | **Senha**: `senhasegura`
+  * **Root**: `root` | **Senha**: `rootpassword`
 * **URL phpMyAdmin**: [http://localhost:8080](http://localhost:8080)
-* **Volume Persistente**: `mysql_data` montado em `/var/lib/mysql`
+* **MongoDB Host / Porta**: `localhost:27017` | **Database**: `modelagem`
+  * **Root**: `root` | **Senha**: `rootpassword`
+  * **URI de Conexão**: `mongodb://root:rootpassword@localhost:27017/modelagem?authSource=admin`
+* **URL Mongo Express**: [http://localhost:8081](http://localhost:8081)
 
 ---
 
@@ -312,11 +322,11 @@ O processo dispensa interpretadores intermediários, sendo executado nativamente
                                            └──────────────────────────────┘
 ```
 
-1. **[`Create_Equipe_5_2026.2.sql`](modelagem/src/scripts/Create_Equipe_5_2026.2.sql) (DDL)**:
+1. **[`Create_Equipe_5_2026.2.sql`] (DDL)**:
    - Cria o schema `modelagem` com charset `utf8mb4`.
    - Cria as 13 tabelas relacionais, chaves primárias, chaves estrangeiras com restrições de integridade referencial (`ON DELETE NO ACTION ON UPDATE NO ACTION`) e índices secundários de consulta (`INDEX`).
 
-2. **[`Insert_Equipe_5_2026.2.sql`](modelagem/src/scripts/Insert_Equipe_5_2026.2.sql) (DML)**:
+2. **[`Insert_Equipe_5_2026.2.sql`] (DML)**:
    - Criação da staging table `temp_despesas`.
    - Ingestão massiva em alta velocidade via `LOAD DATA INFILE`.
    - Recorte analítico do 1º semestre via `DELETE FROM temp_despesas WHERE CAST(LEFT(mes, 2) AS SIGNED) > 6`.
@@ -326,7 +336,7 @@ O processo dispensa interpretadores intermediários, sendo executado nativamente
 
 ---
 
-## 🚀 Guia de Execução Passo a Passo
+## 🚀 Guia de Execução Passo a Passo (Ambiente Relacional / MySQL)
 
 ### 1. Pré-requisitos
 
@@ -372,20 +382,20 @@ Execute os comandos a partir da raiz do repositório:
 
 ```powershell
 # 1. Criação do Banco de Dados e Tabelas (DDL)
-Get-Content src/scripts/Create_Equipe_5_2026.2.sql | docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem
+Get-Content src/scripts/sql/Create_Equipe_5_2026.2.sql | docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem
 
 # 2. Carga, Filtro do 1º Semestre e Normalização Relacional (DML)
-Get-Content src/scripts/Insert_Equipe_5_2026.2.sql | docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem
+Get-Content src/scripts/sql/Insert_Equipe_5_2026.2.sql | docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem
 ```
 
 #### 🐧 Linux / macOS (Bash) ou Prompt de Comando (CMD):
 
 ```bash
 # 1. Criação do Banco de Dados e Tabelas (DDL)
-docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem < src/scripts/Create_Equipe_5_2026.2.sql
+docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem < src/scripts/sql/Create_Equipe_5_2026.2.sql
 
 # 2. Carga, Filtro do 1º Semestre e Normalização Relacional (DML)
-docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem < src/scripts/Insert_Equipe_5_2026.2.sql
+docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem < src/scripts/sql/Insert_Equipe_5_2026.2.sql
 ```
 
 ### 6. Validação e Auditoria dos Dados
@@ -426,49 +436,151 @@ LIMIT 10;
 
 ---
 
+## 🍃 Modelagem NoSQL e Migração para MongoDB
+
+A migração do modelo relacional normalizado (OLTP / 3FN) para o banco de dados orientado a documentos (**MongoDB**) foi projetada utilizando o padrão arquitetural **Extended Reference Pattern** (Modelo Híbrido), implementado visualmente e executado via **MongoDB Relational Migrator**.
+
+### Diagrama da Arquitetura Orientada a Documentos
+
+```mermaid
+graph TD
+    subgraph "MongoDB: Database modelagem"
+        direction TB
+        C["Coleção: credor"]
+        D["Coleção: despesa"]
+        
+        subgraph "Documento: despesa"
+            direction TB
+            D1["Campos Transacionais: numeroEmpenho, dataEmpenho, mes, valores..."]
+            D2["Subdocumento: credor { cpfCnpj, nomeCredor }"]
+            D3["Subdocumento: unidadeGestora { ..., municipio }"]
+            D4["Subdocumento: licitacao"]
+            D5["Subdocumentos Orçamentários: funcao, programa, acao, elemento..."]
+        end
+    end
+    
+    C -. "Extended Reference (Cadastro Central)" .-> D2
+```
+
+### 🧠 Racional Arquitetural: Agrupamento em `despesa` vs. Coleção `credor`
+
+A decisão de incorporar 11 tabelas dentro do documento `despesa` e manter apenas `credor` como coleção separada fundamenta-se nos princípios centrais de modelagem de documentos:
+
+#### 1. Por que incorporar classificadores, licitação e localidade na despesa?
+* **Atomicidade do Ato Orçamentário**: No setor público (Lei 4.320/64), uma despesa é caracterizada por sua dotação completa (Função, Programa, Ação, Elemento, Fonte, Unidade Gestora). Esses classificadores possuem baixa cardinalidade (entre 2 e 1.100 registros) e são conceitualmente imutáveis após a liquidação do empenho.
+* **Eliminação de `$lookup` (Zero Joins)**: Armazenar esses dados incorporados (*embedded*) permite que qualquer relatório analítico de gastos (ex.: despesas de Saúde em Amparo) seja consultado em uma única operação de I/O em disco, dispensando os múltiplos *JOINs* que tornavam o modelo relacional custoso.
+
+#### 2. Por que manter a coleção independente `credor`?
+* **Alta Cardinalidade e Entidade de Negócio**: O universo de credores soma **168.771 registros distintos** (CPFs e CNPJs de fornecedores, servidores e terceirizados). O credor possui ciclo de vida próprio e independe de haver empenho no mês vigente.
+* **Consultas Cadastrais Diretas**: Manter a coleção de topo `credor` viabiliza análises cadastrais (auditorias fiscais, listas de fornecedores contratados) sem a necessidade de varrer exaustivamente a coleção de 1 milhão de transações de despesas.
+* **Aplicação do Extended Reference Pattern**: Para manter as consultas financeiras rápidas sem abrir mão do catálogo mestre, adota-se o modelo híbrido:
+  - A coleção `credor` guarda o **cadastro primário completo** (`cpfCnpj`, `nomeCredor`).
+  - A coleção `despesa` embute apenas a **referência necessária para exibição imediata**:
+    ```json
+    {
+      "credor": {
+        "cpfCnpj": "00000000000191",
+        "nomeCredor": "BANCO DO BRASIL SA"
+      }
+    }
+    ```
+
+---
+
+### 🚀 Guia de Migração e Carga no MongoDB via Relational Migrator
+
+O projeto de migração está formalmente configurado e armazenado em:  
+📁 [`src/scripts/nosql/migracao_modelagem.relmig`]
+com schemas JSON complementares em [`src/scripts/nosql/credor_MongoDBSchema.json`] e [`src/scripts/nosql/despesa_MongoDBSchema.json`].
+
+Siga os passos abaixo para replicar a migração do MySQL para o MongoDB:
+
+#### Passo 1: Inicializar o Ambiente Docker
+Certifique-se de que os serviços MySQL e MongoDB estão rodando:
+```bash
+cd src
+docker compose up -d
+docker compose ps
+```
+
+#### Passo 2: Importar o Projeto no MongoDB Relational Migrator
+1. Abra o aplicativo desktop oficial [MongoDB Relational Migrator](https://www.mongodb.com/products/tools/relational-migrator).
+2. Na tela inicial, clique em **Import project** (ou **Open Project**).
+3. Selecione o arquivo de migração do projeto:
+   ```plaintext
+   src/scripts/nosql/migracao_modelagem.relmig
+   ```
+4. O projeto carregará automaticamente as 13 tabelas do MySQL e as regras de transformação NoSQL já configuradas (mapeamento das 11 tabelas como subdocumentos incorporados em `despesa` e criação da coleção de topo `credor`).
+
+#### Passo 3: Conectar aos Bancos de Dados
+Configure os nós de conexão no aplicativo:
+* **Origem (Source - MySQL)**:
+  * **Host**: `localhost` | **Porta**: `3307`
+  * **Usuário**: `root` | **Senha**: `rootpassword`
+  * **Database**: `modelagem`
+* **Destino (Target - MongoDB)**:
+  * **Connection String**: `mongodb://root:rootpassword@localhost:27017/modelagem?authSource=admin`
+
+#### Passo 4: Executar a Migração
+1. Acesse a aba **Data Migration** no menu superior do Migrator.
+2. Crie um novo job no modo **Snapshot** (Carga em lote pontual).
+3. Selecione as coleções de destino: **`despesa`** e **`credor`**.
+4. Clique em **Start** e acompanhe o progresso do carregamento.
+
+---
+
 ## 📂 Estrutura do Repositório
 
 ### Visão em Árvore
 
 ```plaintext
 modelagem/
-├── README.md                              # Documentação técnica e guia operacional do projeto
-├── LICENSE                                # Termos de licença de uso (GPL v3)
+├── README.md                                  # Documentação técnica e guia operacional do projeto
+├── LICENSE                                    # Termos de licença de uso (GPL v3)
 │
-├── src/                                   # Diretório principal de desenvolvimento
-│   ├── docker-compose.yml                 # Manifesto Docker (MySQL 8.0 e phpMyAdmin)
-│   ├── modelo_2025.mwb                    # Modelo EER relacional editável do MySQL Workbench
+├── src/                                       # Diretório principal de desenvolvimento
+│   ├── docker-compose.yml                     # Infraestrutura MySQL 8.0, MongoDB, phpMyAdmin e Mongo Express
+│   ├── modelo_2025.mwb                        # Modelo EER relacional editável do MySQL Workbench
 │   │
-│   ├── img/                               # Diagramas visuais exportados
-│   │   └── eer_diagram.png                # Imagem exportada do modelo relacional (DER / 3FN)
+│   ├── img/                                   # Diagramas visuais exportados
+│   │   └── eer_diagram.png                    # Imagem exportada do modelo relacional (DER / 3FN)
 │   │
-│   ├── raw/                               # Diretório de dados brutos (ignorado no Git)
-│   │   ├── despesas-2025.csv              # CSV consolidado de despesas 2025 do TCE-PB
-│   │   └── receitas-2025.csv              # CSV consolidado de receitas 2025 do TCE-PB
+│   ├── raw/                                   # Diretório de dados brutos (ignorado no Git)
+│   │   ├── despesas-2025.csv                  # CSV consolidado de despesas 2025 do TCE-PB
+│   │   └── receitas-2025.csv                  # CSV consolidado de receitas 2025 do TCE-PB
 │   │
-│   ├── scripts/                           # Scripts SQL de automação e engenharia de dados
-│   │   ├── Create_Equipe_5_2026.2.sql     # DDL: Definição de tabelas, PKs, FKs e restrições
-│   │   ├── Insert_Equipe_5_2026.2.sql     # DML: Staging, carga, filtro semestral e 3FN
+│   ├── scripts/                               # Automação de banco de dados (SQL e NoSQL)
+│   │   ├── sql/                               # Scripts SQL de engenharia e modelagem relacional
+│   │   │   ├── Create_Equipe_5_2026.2.sql     # DDL: Definição de tabelas, PKs, FKs e restrições
+│   │   │   ├── Insert_Equipe_5_2026.2.sql     # DML: Staging, carga, filtro semestral e 3FN
+│   │   │   ├── Insert_Equipe_5_2026.2(local).sql # DML alternativo para execução local
+│   │   │   └── modelo_2025.mwb                # Cópia do modelo relacional do Workbench
+│   │   │
+│   │   └── nosql/                             # Artefatos de modelagem e migração para MongoDB
+│   │       ├── migracao_modelagem.relmig      # Projeto do MongoDB Relational Migrator
+│   │       ├── credor_MongoDBSchema.json      # JSON Schema da coleção credor
+│   │       └── despesa_MongoDBSchema.json     # JSON Schema da coleção despesa
 │   │
-│   └── python/                            # Análise exploratória preliminar
-│       ├── consolidacao.ipynb             # Notebook de inspeção e consolidação multianual
-│       └── normalizacao.ipynb             # Notebook com prototipagem inicial de normalização
+│   └── python/                                # Análise exploratória preliminar
+│       ├── consolidacao.ipynb                 # Notebook de inspeção e consolidação multianual
+│       └── normalizacao.ipynb                 # Notebook com prototipagem inicial de normalização
 │
-└── zips/                                  # Arquivos compactados originais (opcional)
-    ├── despesas-2025.zip                  # Download bruto de despesas do TCE-PB
-    └── receitas-2025.zip                  # Download bruto de receitas do TCE-PB
+└── zips/                                      # Arquivos compactados originais (opcional)
+    ├── despesas-2025.zip                      # Download bruto de despesas do TCE-PB
+    └── receitas-2025.zip                      # Download bruto de receitas do TCE-PB
 ```
 
 ### Organização e Papel das Pastas
 
 | Diretório / Arquivo | Classificação | Descrição e Finalidade Técnica |
 | :--- | :--- | :--- |
-| **`/` (Raiz)** | Governança | Abriga a documentação principal ([`README.md`](modelagem/README.md)), termos de licença ([`LICENSE`](modelagem/LICENSE)) e configurações do repositório Git. |
-| **`src/`** | Núcleo do Projeto | Diretório central que reúne infraestrutura, modelagem relacional, scripts SQL de automação e cadernos de apoio. |
-| **`src/docker-compose.yml`** | Infraestrutura | Manifesto de orquestração Docker contendo o banco MySQL 8.0 (porta 3307) e o painel phpMyAdmin (porta 8080) com persistência em volume. |
+| **`/` (Raiz)** | Governança | Abriga a documentação principal ([`README.md`]), termos de licença ([`LICENSE`]) e configurações do repositório Git. |
+| **`src/`** | Núcleo do Projeto | Diretório central que reúne infraestrutura conteinerizada, modelagem relacional, scripts de automação e cadernos de apoio. |
+| **`src/docker-compose.yml`** | Infraestrutura | Manifesto Docker unificado contendo MySQL 8.0, MongoDB, phpMyAdmin e Mongo Express com volumes persistentes. |
 | **`src/modelo_2025.mwb`** | Modelagem EER | Arquivo fonte editável do MySQL Workbench com o modelo relacional normalizado até a 3FN, chaves e restrições. |
-| **`src/img/`** | Artefatos Visuais | Diagramas de entidade-relacionamento (DER/EER) exportados em alta resolução ([`eer_diagram.png`](modelagem/src/img/eer_diagram.png)) para documentação e relatórios. |
+| **`src/img/`** | Artefatos Visuais | Diagramas de entidade-relacionamento (DER/EER) exportados em alta resolução ([`eer_diagram.png`]) para documentação e relatórios. |
 | **`src/raw/`** | *Data Lake / Ingestão* | Pasta destinada a receber os arquivos brutos extraídos do portal de dados abertos do TCE-PB (`despesas-2025.csv`). Arquivos ignorados pelo Git via `.gitignore` devido ao tamanho (>1.9 GB). |
-| **`src/scripts/`** | Engenharia SQL | **Coração do banco de dados**: contém scripts SQL nativos divididos em DDL ([`Create_Equipe_5_2026.2.sql`](modelagem/src/scripts/Create_Equipe_5_2026.2.sql)), DML ([`Insert_Equipe_5_2026.2.sql`](modelagem/src/scripts/Insert_Equipe_5_2026.2.sql)) e DQL ([`check_data.sql`](modelagem/src/scripts/check_data.sql) e [`check_nulos.sql`](modelagem/src/scripts/check_nulos.sql) para validação e auditoria). |
+| **`src/scripts/sql/`** | Engenharia Relacional | Contém os scripts SQL nativos: DDL ([`Create_Equipe_5_2026.2.sql`]), DML ([`Insert_Equipe_5_2026.2.sql`]) e modelo `.mwb`. |
+| **`src/scripts/nosql/`** | Engenharia NoSQL | Artefatos da migração para MongoDB: projeto do MongoDB Relational Migrator ([`migracao_modelagem.relmig`]) e esquemas JSON de validação das coleções `despesa` e `credor`. |
 | **`src/python/`** | *Data Science / EDA* | Cadernos Jupyter (`.ipynb`) utilizados na fase exploratória inicial de análise estatística, consolidação multianual e prototipagem dos tratamentos de dados. |
 | **`zips/`** | Arquivos Compactados | Pasta de conveniência local para armazenamento dos arquivos compactados baixados diretamente do portal governamental. |
