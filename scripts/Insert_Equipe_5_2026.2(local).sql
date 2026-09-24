@@ -63,10 +63,7 @@ CREATE TABLE `temp_despesas` (
 -- -----------------------------------------------------------------------------
 -- 2. Carga do Arquivo CSV Bruto
 -- -----------------------------------------------------------------------------
--- SHOW VARIABLES LIKE 'secure_file_priv';
-
-LOAD DATA INFILE '/var/lib/mysql-files/despesas-2025.csv'
-
+LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/despesas-2025.csv'
 INTO TABLE `temp_despesas`
 FIELDS TERMINATED BY ';'
 OPTIONALLY ENCLOSED BY '"'
@@ -89,7 +86,7 @@ COMMIT;
 -- 4. Normalização: Localidade e Unidades Gestoras
 -- -----------------------------------------------------------------------------
 
--- 4.1. Tabela: municipio (sem UF, registro sentinela 1)
+-- 4.1. Tabela: municipio (sentinela 1)
 INSERT INTO `municipio` (`id_municipio`, `nome_municipio`)
 VALUES (1, 'Não Informado');
 
@@ -101,7 +98,7 @@ WHERE `municipio` IS NOT NULL
   AND TRIM(`municipio`) != ''
 ORDER BY TRIM(`municipio`);
 
--- 4.2. Tabela: unidade_gestora
+-- 4.2. Tabela: unidade_gestora (sentinela 0)
 INSERT INTO `unidade_gestora` (`codigo_unidade_gestora`, `nome_unidade_gestora`, `id_municipio`)
 VALUES (0, 'Não Informado', 1);
 
@@ -127,7 +124,7 @@ LEFT JOIN `municipio` m
 -- 5. Normalização: Credores e Licitações
 -- -----------------------------------------------------------------------------
 
--- 5.1. Tabela: credor (VARCHAR mantendo zeros à esquerda)
+-- 5.1. Tabela: credor (sentinela '0')
 INSERT IGNORE INTO `credor` (`cpf_cnpj`, `nome_credor`) 
 VALUES ('0', 'Não Informado');
 
@@ -140,21 +137,20 @@ WHERE `cpf_cnpj` IS NOT NULL
   AND TRIM(`cpf_cnpj`) != ''
   AND TRIM(`cpf_cnpj`) != '0';
 
--- 5.2. Tabela: licitacao (registro sentinela 1 para compras diretas)
-INSERT INTO `licitacao` (`id_licitacao`, `numero_licitacao`, `modalidade_licitacao`, `numero_obra`)
-VALUES (1, 'Sem Licitação', 'Sem Licitação', '0');
+-- 5.2. Tabela: licitacao (sentinela 1 para despesas sem licitação)
+INSERT INTO `licitacao` (`id_licitacao`, `numero_licitacao`, `modalidade_licitacao`)
+VALUES (1, 'Sem Licitação', 'Sem Licitação');
 
-INSERT IGNORE INTO `licitacao` (`numero_licitacao`, `modalidade_licitacao`, `numero_obra`)
+INSERT IGNORE INTO `licitacao` (`numero_licitacao`, `modalidade_licitacao`)
 SELECT DISTINCT 
     COALESCE(NULLIF(TRIM(`numero_licitacao`), ''), 'Sem Licitação'),
-    COALESCE(NULLIF(TRIM(`modalidade_licitacao`), ''), 'Sem Licitação'),
-    COALESCE(NULLIF(TRIM(`numero_obra`), ''), '0')
+    COALESCE(NULLIF(TRIM(`modalidade_licitacao`), ''), 'Sem Licitação')
 FROM `temp_despesas`
 WHERE TRIM(`numero_licitacao`) NOT IN ('000000000', '', '0', 'Sem Licitação')
    OR TRIM(`modalidade_licitacao`) NOT IN ('Sem Licitação', '', '0');
 
 -- -----------------------------------------------------------------------------
--- 6. Normalização: Classificadores Orçamentários (Higienizados)
+-- 6. Normalização: Classificadores Orçamentários (Sentinelas 0)
 -- -----------------------------------------------------------------------------
 
 -- 6.1. Funcao
@@ -247,7 +243,7 @@ SELECT
         STR_TO_DATE(LEFT(t.`data_empenho`, 10), '%d/%m/%Y'),
         '2025-01-01'
     ),
-    t.`mes`,
+    COALESCE(NULLIF(t.`mes`, ''), 'Não Informado'),
     COALESCE(CAST(REPLACE(REPLACE(NULLIF(t.`valor_empenhado`, ''), '.', ''), ',', '.') AS DECIMAL(15,2)), 0.00),
     COALESCE(CAST(REPLACE(REPLACE(NULLIF(t.`valor_liquidado`, ''), '.', ''), ',', '.') AS DECIMAL(15,2)), 0.00),
     COALESCE(CAST(REPLACE(REPLACE(NULLIF(t.`valor_pago`, ''), '.', ''), ',', '.') AS DECIMAL(15,2)), 0.00),
@@ -266,8 +262,7 @@ SELECT
 FROM `temp_despesas` t
 LEFT JOIN `licitacao` l
     ON TRIM(t.`numero_licitacao`) = l.`numero_licitacao`
-   AND TRIM(t.`modalidade_licitacao`) = l.`modalidade_licitacao`
-   AND TRIM(t.`numero_obra`) = l.`numero_obra`;
+   AND TRIM(t.`modalidade_licitacao`) = l.`modalidade_licitacao`;
 
 COMMIT;
 

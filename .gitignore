@@ -1,4 +1,6 @@
 src/raw/*.csv
+raw/*.csv
+*.csv
 dados_consolidados/
 zips/
 parquet/

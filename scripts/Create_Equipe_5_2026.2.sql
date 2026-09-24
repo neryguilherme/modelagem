@@ -8,9 +8,6 @@ SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 
--- -----------------------------------------------------
--- Schema modelagem
--- -----------------------------------------------------
 CREATE SCHEMA IF NOT EXISTS `modelagem` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci ;
 USE `modelagem` ;
 
@@ -58,9 +55,8 @@ DROP TABLE IF EXISTS `modelagem`.`licitacao` ;
 
 CREATE TABLE IF NOT EXISTS `modelagem`.`licitacao` (
   `id_licitacao` INT NOT NULL AUTO_INCREMENT,
-  `numero_licitacao` VARCHAR(50) NULL DEFAULT NULL,
-  `modalidade_licitacao` VARCHAR(100) NULL DEFAULT NULL,
-  `numero_obra` VARCHAR(50) NULL DEFAULT NULL,
+  `numero_licitacao` VARCHAR(50) NOT NULL DEFAULT 'Sem Licitação',
+  `modalidade_licitacao` VARCHAR(100) NOT NULL DEFAULT 'Sem Licitação',
   PRIMARY KEY (`id_licitacao`))
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4;
@@ -147,14 +143,14 @@ CREATE TABLE IF NOT EXISTS `modelagem`.`despesa` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `numero_empenho` INT NOT NULL,
   `data_empenho` DATE NOT NULL,
-  `mes` VARCHAR(20) NULL DEFAULT NULL,
+  `mes` VARCHAR(20) NOT NULL,
   `valor_empenhado` DECIMAL(15,2) NOT NULL DEFAULT 0.00,
   `valor_liquidado` DECIMAL(15,2) NOT NULL DEFAULT 0.00,
   `valor_pago` DECIMAL(15,2) NOT NULL DEFAULT 0.00,
   `historico` TEXT NULL DEFAULT NULL,
   `codigo_unidade_gestora` INT NOT NULL,
   `cpf_cnpj` VARCHAR(255) NOT NULL,
-  `id_licitacao` INT NULL DEFAULT NULL,
+  `id_licitacao` INT NOT NULL DEFAULT 1,
   `codigo_funcao` INT NOT NULL,
   `codigo_programa` INT NOT NULL,
   `codigo_acao` VARCHAR(20) NOT NULL,

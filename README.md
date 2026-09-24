@@ -9,9 +9,13 @@
 [![Workbench](https://img.shields.io/badge/MySQL_Workbench-8.0-00758F?style=for-the-badge&logo=mysql&logoColor=white)](https://dev.mysql.com/downloads/workbench/)
 [![Modelo](https://img.shields.io/badge/Arquitetura-OLTP_%7C_3FN_%26_NoSQL-success?style=for-the-badge)](https://en.wikipedia.org/wiki/Third_normal_form)
 
-Projeto acadêmico de modelagem e engenharia de banco de dados relacional transacional (**OLTP**), estritamente normalizado até a **3ª Forma Normal (3FN)**, e sua posterior modernização para modelo orientado a documentos (**NoSQL / MongoDB**), desenvolvido a partir dos microdados públicos de execução orçamentária do **Tribunal de Contas do Estado da Paraíba (TCE-PB)** para o **1º Semestre de 2025**.
+Projeto acadêmico de modelagem e engenharia de banco de dados relacional transacional (**OLTP**), estritamente normalizado até a **3ª Forma Normal (3FN)**, e sua respectiva transposição para banco de dados orientado a documentos (**NoSQL / MongoDB**), desenvolvido a partir dos microdados públicos de execução orçamentária do **Tribunal de Contas do Estado da Paraíba (TCE-PB)** para o **1º Semestre de 2025**.
 
-O projeto estrutura o ciclo de vida da execução da despesa pública (**Empenho**, **Liquidação** e **Pagamento**) em torno de uma entidade transacional central (`despesa`), decomposta em 12 tabelas de domínio e localidade no ambiente relacional, e migrada para o MongoDB através do padrão **Extended Reference Pattern** com auxílio do **MongoDB Relational Migrator**. O ecossistema completo conta com conteinerização integrada via **Docker Compose**, scripts SQL puros de higienização/carga e esquemas NoSQL validados.
+O projeto estrutura o ciclo de vida da execução da despesa pública (**Empenho**, **Liquidação** e **Pagamento**) em torno de uma entidade transacional central (`despesa`), decomposta em 12 tabelas de domínio e localidade no modelo relacional, com tolerância zero a valores nulos em chaves através de **Registros Sentinelas**. No ambiente NoSQL (MongoDB), os dados são espelhados em 13 coleções através do **MongoDB Relational Migrator**.
+
+> [!TIP]
+> **Execução Local (MySQL 3306 & Workbench)**: Se você deseja rodar este projeto em uma instalação local do MySQL Server sem Docker, consulte o nosso guia dedicado:  
+> 📘 [**`EXECUCAO_LOCAL.md` — Guia de Execução Local no MySQL Workbench**](file:///c:/Users/eu/Documents/GitHub/modelagem/EXECUCAO_LOCAL.md)
 
 ---
 
@@ -21,21 +25,22 @@ O projeto estrutura o ciclo de vida da execução da despesa pública (**Empenho
 - [Ciclo da Despesa Orçamentária e Arquitetura Relacional](#️-ciclo-da-despesa-orçamentária-e-arquitetura-relacional)
 - [Diagrama Entidade-Relacionamento (EER)](#-diagrama-entidade-relacionamento-eer)
 - [Dicionário de Tabelas e Entidades](#-dicionário-de-tabelas-e-entidades)
+- [Justificativas de Chaves Primárias](#-justificativas-de-chaves-primárias)
+  - [Por que `numero_licitacao` não é a Chave Primária (PK)?](#por-que-numero_licitacao-não-é-a-chave-primária-pk)
 - [Colunas Descartadas e Justificativas de Modelagem](#-colunas-descartadas-e-justificativas-de-modelagem)
 - [Tratamento Documental: Preservação de CPF e CNPJ (VARCHAR)](#-tratamento-documental-preservação-de-cpf-e-cnpj-varchar)
-- [Estratégia de Mitigação de Inconsistências e Nulos](#️-estratégia-de-mitigação-de-inconsistências-e-nulos)
+- [Tratamento de Nulidade Estrita: Registros Sentinelas em Chaves Estrangeiras](#️-tratamento-de-nulidade-estrita-registros-sentinelas-em-chaves-estrangeiras)
 - [Arquitetura de Infraestrutura (Docker)](#-arquitetura-de-infraestrutura-docker)
 - [Pipeline de Carga e Normalização via SQL](#-pipeline-de-carga-e-normalização-via-sql)
-- [Guia de Execução Passo a Passo (Ambiente Relacional / MySQL)](#-guia-de-execução-passo-a-passo-ambiente-relacional--mysql)
+- [Guia de Execução Passo a Passo (Ambiente Docker)](#-guia-de-execução-passo-a-passo-ambiente-docker)
   - [1. Pré-requisitos](#1-pré-requisitos)
   - [2. Download da Base Bruta](#2-download-da-base-bruta)
   - [3. Iniciar os Serviços Docker](#3-iniciar-os-serviços-docker)
-  - [4. Copiar o CSV para a Pasta do MySQL](#4-copiar-o-csv-para-a-pasta-do-mysql)
+  - [4. Copiar o CSV para a Pasta Segura do MySQL](#4-copiar-o-csv-para-a-pasta-segura-do-mysql)
   - [5. Executar os Scripts de Criação e Carga](#5-executar-os-scripts-de-criação-e-carga)
   - [6. Validação e Auditoria dos Dados](#6-validação-e-auditoria-dos-dados)
 - [Modelagem NoSQL e Migração para MongoDB](#-modelagem-nosql-e-migração-para-mongodb)
   - [Diagrama da Arquitetura Orientada a Documentos](#diagrama-da-arquitetura-orientada-a-documentos)
-  - [Racional Arquitetural: Agrupamento em despesa vs. Coleção credor](#racional-arquitetural-agrupamento-em-despesa-vs-coleção-credor)
   - [Guia de Migração e Carga no MongoDB via Relational Migrator](#guia-de-migração-e-carga-no-mongodb-via-relational-migrator)
 - [Estrutura do Repositório](#-estrutura-do-repositório)
   - [Visão em Árvore](#visão-em-árvore)
@@ -69,11 +74,11 @@ $$ \text{1. Empenho} \longrightarrow \text{2. Liquidação} \longrightarrow \tex
 
 ### Transição de Data Warehouse (OLAP) para Modelo Relacional Puro (OLTP / 3FN)
 
-Em substituição a modelos analíticos de Business Intelligence baseados em *Star Schema* (`fato_` e `dim_`), o banco de dados foi estruturado estritamente sob as regras da **3ª Forma Normal (3FN)**:
+Em substituição a modelos analíticos baseados em *Star Schema* (`fato_` e `dim_`), o banco de dados foi estruturado estritamente sob as regras da **3ª Forma Normal (3FN)**:
 
-* **Entidade Central `despesa`**: Consolida os atributos transacionais e os valores monetários das três fases do gasto (`valor_empenhado`, `valor_liquidado`, `valor_pago` tipados em `DECIMAL(15,2)`), associando-os às respectivas entidades de domínio através de Chaves Estrangeiras (FK).
+* **Entidade Central `despesa`**: Consolida os atributos transacionais e os valores monetários das três fases do gasto (`valor_empenhado`, `valor_liquidado`, `valor_pago` tipados em `DECIMAL(15,2)`), associando-se às respectivas entidades de domínio através de 10 Chaves Estrangeiras estritas (`FOREIGN KEY NOT NULL`).
 * **Eliminação de Dependências Transitivas em Localidades**: Criação da tabela `municipio`, associando-se hierarquicamente à `unidade_gestora` (`unidade_gestora.id_municipio` $\rightarrow$ `municipio.id_municipio`).
-* **Desacoplamento de Domínios**: Categorias de contratação (`licitacao`), agentes econômicos (`credor`) e classificadores funcionais e orçamentários padronizados pela STN e MOG foram isolados em tabelas próprias.
+* **Desacoplamento de Domínios**: Processos licitatórios (`licitacao`), credores (`credor`) e classificadores orçamentários (LOA/STN) isolados em tabelas próprias.
 
 ---
 
@@ -114,7 +119,6 @@ erDiagram
         int id_licitacao PK
         varchar numero_licitacao
         varchar modalidade_licitacao
-        varchar numero_obra
     }
 
     funcao {
@@ -166,38 +170,38 @@ erDiagram
         decimal valor_liquidado
         decimal valor_pago
         text historico
-        int codigo_unidade_gestora FK
-        varchar cpf_cnpj FK
-        int id_licitacao FK
-        int codigo_funcao FK
-        int codigo_programa FK
-        varchar codigo_acao FK
-        int codigo_categoria_economica FK
-        int codigo_natureza FK
-        int codigo_modalidade_aplicacao FK
-        int codigo_elemento_despesa FK
-        int codigo_fonte_recurso FK
+        int codigo_unidade_gestora FK "NOT NULL"
+        varchar cpf_cnpj FK "NOT NULL"
+        int id_licitacao FK "NOT NULL DEFAULT 1"
+        int codigo_funcao FK "NOT NULL"
+        int codigo_programa FK "NOT NULL"
+        varchar codigo_acao FK "NOT NULL"
+        int codigo_categoria_economica FK "NOT NULL"
+        int codigo_natureza FK "NOT NULL"
+        int codigo_modalidade_aplicacao FK "NOT NULL"
+        int codigo_elemento_despesa FK "NOT NULL"
+        int codigo_fonte_recurso FK "NOT NULL"
     }
 ```
 
 O modelo relacional conceitual/lógico original está armazenado em:
-📁 [`src/scripts/sql/modelo_2025.mwb`](ou [`src/modelo_2025.mwb`]).  
+📁 [`scripts/modelo_2025_gp5.mwb`](file:///c:/Users/eu/Documents/GitHub/modelagem/scripts/modelo_2025_gp5.mwb).  
 O diagrama visual exportado em alta resolução está disponível em:
-🖼️ [`src/img/eer_diagram.png`].
+🖼️ [`img/eer_diagram.png`](file:///c:/Users/eu/Documents/GitHub/modelagem/img/eer_diagram.png).
 
 ---
 
 ## 📋 Dicionário de Tabelas e Entidades
 
-O banco de dados físico implementado consolida **13 tabelas**:
+O banco de dados físico implementado consolida **13 tabelas relacionais**:
 
 | Tabela | Tipo | Chave Primária (PK) | Chaves Estrangeiras (FK) | Descrição do Domínio |
 | :--- | :--- | :--- | :--- | :--- |
-| **`despesa`** | Central / Transacional | `id` (`INT AI`) | 10 FKs associadas | Execução orçamentária contendo número do empenho, data, mês, histórico e os valores empenhado, liquidado e pago. |
+| **`despesa`** | Central / Transacional | `id` (`INT AI`) | 10 FKs associadas (`NOT NULL`) | Execução orçamentária contendo número do empenho, data, mês, histórico e os valores empenhado, liquidado e pago. |
 | **`municipio`** | Domínio / Localidade | `id_municipio` (`INT AI`) | Nenhuma | Municípios do Estado da Paraíba responsáveis pelas administrações públicas. |
 | **`unidade_gestora`** | Entidade Administrativa | `codigo_unidade_gestora` (`INT`) | `id_municipio` | Órgãos executores da despesa (prefeituras, câmaras, fundos municipais). |
 | **`credor`** | Agente Econômico | `cpf_cnpj` (`VARCHAR(255)`) | Nenhuma | Fornecedores, servidores e prestadores de serviços recebedores dos pagamentos. |
-| **`licitacao`** | Processo Administrativo | `id_licitacao` (`INT AI`) | Nenhuma | Identificação do processo licitatório, número do certame, modalidade e registro de obra. |
+| **`licitacao`** | Processo Administrativo | `id_licitacao` (`INT AI`) | Nenhuma | Identificação do processo licitatório, número do certame e modalidade contratual. |
 | **`funcao`** | Classificador Orçamentário | `codigo_funcao` (`INT`) | Nenhuma | Maior nível de agregação das áreas de atuação do setor público (ex: Saúde, Educação). |
 | **`programa`** | Planejamento Orçamentário | `codigo_programa` (`INT`) | Nenhuma | Programas governamentais estabelecidos no Plano Plurianual (PPA). |
 | **`acao`** | Instrumento de Despesa | `codigo_acao` (`VARCHAR(20)`) | Nenhuma | Projetos, atividades ou operações especiais com finalidade específica. |
@@ -209,12 +213,26 @@ O banco de dados físico implementado consolida **13 tabelas**:
 
 ---
 
+## 🔑 Justificativas de Chaves Primárias
+
+### Por que `numero_licitacao` não é a Chave Primária (PK)?
+
+Adotou-se a Surrogate Key sintética `id_licitacao (INT AUTO_INCREMENT)` em substituição ao atributo de negócio `numero_licitacao` devido aos seguintes fatores determinantes:
+
+1. **Falta de Unicidade (Colisão de Números)**: A numeração de licitações é anual e municipal, e não de controle estadual unificado. No 1º semestre de 2025, existem dezenas de licitações com o número idêntico `"00001/2025"` ocorrendo simultaneamente em municípios diferentes (João Pessoa, Campina Grande, Patos, etc.). Exigir unicidade nessa coluna inviabilizaria inserções legítimas por erro de chave duplicada.
+2. **Presença Massiva de Nulos**: Na base bruta do TCE-PB, centenas de milhares de linhas possuem o campo de licitação vazio/nulo (despesas diretas, diárias, folhas de pagamento). Por definição matemática e relacional, uma Chave Primária jamais pode conter valores nulos.
+3. **Formatação Suja e Inconsistente**: Municípios registram o certame com variações livres de máscara (`"001/2025"`, `"PE 01/25"`, `"DISP 12"`), o que degradaria a ordenação e a consistência da indexação.
+4. **Desempenho dos Índices e Chaves Estrangeiras**: Apontar na tabela `despesa` (com mais de 1 milhão de registros) uma FK numérica inteira (`INT`) consome apenas **4 bytes** por linha; propagar um `VARCHAR(50)` exigiria mais de **50 MB adicionais** de memória RAM e disco apenas para a coluna de relacionamento.
+
+---
+
 ## 🗑️ Colunas Descartadas e Justificativas de Modelagem
 
-A base de dados bruta original continha 40 colunas desnormalizadas. No processo de engenharia reversa e reestruturação para a 3FN, **11 colunas foram descartadas** com base em critérios técnicos e diretrizes acadêmicas:
+A base de dados bruta original continha 40 colunas desnormalizadas. No processo de engenharia reversa e reestruturação para a 3FN, **12 colunas foram descartadas** com base em critérios técnicos e diretrizes de normalização:
 
 | Coluna Bruta Original | Destino no Projeto | Justificativa Técnica e de Modelagem |
 | :--- | :---: | :--- |
+| **`numero_obra`** | Descartada da tabela `licitacao` | **Altíssima dispersão de nulos**: Presente com valores nulos/vazios em **mais de 96% das linhas** da base bruta do TCE-PB, sendo irrelevante na execução orçamentária corrente geral. |
 | **`codigo_subfuncao`**<br>**`subfuncao`** | Descartadas | **Eliminação de sub-hierarquias excessivas**: Atendimento direto à diretriz de remover tabelas *"SUB"*. A classificação setorial foi concentrada na entidade principal `funcao`, simplificando as junções sem perda de granularidade funcional. |
 | **`codigo_subelemento`**<br>**`codigo_subelemento_exibicao`** | Descartadas | **Eliminação de desdobramentos redundantes**: O nível analítico contábil oficial da despesa é assegurado pela tabela `elemento_despesa`. A divisão em subelementos gerava excesso de registros textuais nulos na origem. |
 | **`codigo_unidade_orcamentaria`**<br>**`descricao_unidade_orcamentaria`** | Descartadas | **Eliminação de órgão subordinado**: Em conformidade com o feedback de modelagem de evitar múltiplos níveis administrativos, a gestão orçamentária foi unificada no órgão executor formal (`unidade_gestora`). |
@@ -245,23 +263,103 @@ A coluna `cpf_cnpj` foi convertida formalmente para **`VARCHAR(255)`** tanto na 
 
 ---
 
-## 🛡️ Estratégia de Mitigação de Inconsistências e Nulos
+## 🛡️ Tratamento de Nulidade Estrita: Registros Sentinelas em Chaves Estrangeiras
 
-Para manter integridade referencial estrita (`FOREIGN KEY NOT NULL`) e prevenir falhas durante o carregamento de mais de 1 milhão de linhas, foram implementadas as seguintes soluções nos scripts SQL:
+Para atender à diretriz de **tolerância zero a campos `NULL` em relacionamentos transacionais**, todas as 12 tabelas de domínio adotam a estratégia de **Registros Sentinelas** (IDs `0` ou `1` com o valor `'Não Informado'` ou `'Sem Licitação'`).
+
+Dessa forma, a tabela central `despesa` garante integridade referencial estrita (**`NOT NULL` em todas as 10 Chaves Estrangeiras**), permitindo operações analíticas exclusivamente com **`INNER JOIN`** sem risco de descarte involuntário de transações.
+
+| **Tabela de Domínio** | **Chave do Sentinela** | **Descrição Cadastrada** | **Finalidade de Negócio** |
+| :--- | :--- | :--- | :--- |
+| **`licitacao`** | `id_licitacao = 1` | `'Sem Licitação'` / `'Sem Licitação'` | Atende despesas diretas, diárias, folhas de pagamento e adiantamentos. |
+| **`municipio`** | `id_municipio = 1` | `'Não Informado'` | Para órgãos estaduais sem sede municipal declarada. |
+| **`unidade_gestora`** | `codigo = 0` | `'Não Informado'` (vinculada ao município 1) | Registros de órgãos sem código válido no empenho. |
+| **`credor`** | `cpf_cnpj = '0'` | `'Não Informado'` | Despesas com favorecido não declarado na origem. |
+| **`funcao`** | `codigo = 0` | `'Não Informado'` | Empenhos sem enquadramento funcional. |
+| **`programa`** | `codigo = 0` | `'Não Informado'` | Empenhos sem programa de governo especificado. |
+| **`acao`** | `codigo = '0'` | `'Não Informado'` | Empenhos sem ação orçamentária associada. |
+| **`categoria_economica`** | `codigo = 0` | `'Não Informado'` | Casos sem classificação de despesa corrente/capital. |
+| **`natureza_despesa`** | `codigo = 0` | `'Não Informado'` | Falta de grupo de natureza de despesa (GND). |
+| **`modalidade_aplicacao`** | `codigo = 0` | `'Não Informado'` | Falta de modalidade de aplicação orçamentária. |
+| **`elemento_despesa`** | `codigo = 0` | `'Não Informado'` | Falta de discriminação do item de gasto. |
+| **`fonte_recurso`** | `codigo = 0` | `'Não Informado'` | Despesas sem especificação de fonte de financiamento. |
+
+### Mitigação de Inconsistências de Tipagem no Script DML
 
 | Situação Encontrada | Causa Raiz na Origem | Tratamento Aplicado no Script SQL (`Insert_Equipe_5_2026.2.sql`) |
 | :--- | :--- | :--- |
-| **Inconsistência de Datas** | Alternância de formatos `YYYY-MM-DD` e `DD/MM/YYYY` no CSV | Conversão dinâmica com dupla checagem:<br>`COALESCE(STR_TO_DATE(LEFT(data, 10), '%Y-%m-%d'), STR_TO_DATE(LEFT(data, 10), '%d/%m/%Y'), '2025-01-01')` |
-| **Valores Financeiros Formatados** | Formato de moeda brasileiro (`1.250,50` com pontos de milhar e vírgula decimal) | Sanitização em tempo de carga com conversão monetária:<br>`COALESCE(CAST(REPLACE(REPLACE(val, '.', ''), ',', '.') AS DECIMAL(15,2)), 0.00)` |
-| **Compras sem Licitação** | Despesas diretas ou adiantamentos sem processo licitatório | Criação do Registro Sentinela `id_licitacao = 1` com a descrição `'Sem Licitação'`, associado via `COALESCE`. |
-| **Deslocamento de Colunas (Linhas Órfãs)** | Registros brutos com código 0 e textos vizinhos vazados | Cláusula de proteção `WHERE CAST(codigo AS SIGNED) > 0`, garantindo apenas códigos legítimos e inserindo explicitamente `(0, 'Não Informado')`. |
-| **Unidades Gestoras sem Município** | Registros administrativos com código 0 | Criação do Município Sentinela `id_municipio = 1` (`'Não Informado'`) associado à Unidade Gestora 0. |
+| **Inconsistência de Datas** | Alternância de formatos `YYYY-MM-DD` e `DD/MM/YYYY` no CSV | `COALESCE(STR_TO_DATE(LEFT(data, 10), '%Y-%m-%d'), STR_TO_DATE(LEFT(data, 10), '%d/%m/%Y'), '2025-01-01')` |
+| **Valores Financeiros Formatados** | Formato de moeda brasileiro (`1.250,50` com pontuação de milhar) | `COALESCE(CAST(REPLACE(REPLACE(val, '.', ''), ',', '.') AS DECIMAL(15,2)), 0.00)` |
+| **Despesas sem Licitação** | Despesas diretas e dispensas | Registro Sentinela `id_licitacao = 1` associado via `COALESCE(l.id_licitacao, 1)` |
+| **Deslocamento de Colunas** | Registros brutos com código 0 ou vazamentos textuais | Cláusula `WHERE CAST(codigo AS SIGNED) > 0`, garantindo apenas códigos legítimos |
+| **Mês Transacional Nulo** | Omissão eventual do identificador de mês | `COALESCE(NULLIF(t.mes, ''), 'Não Informado')` garantindo `NOT NULL` |
 
 ---
 
 ## 🐳 Arquitetura de Infraestrutura (Docker)
 
-O ambiente completo de bancos de dados relacionais e NoSQL, bem como suas respectivas interfaces de gestão gráfica, é provisionado via **Docker Compose** integrado na mesma rede interna (`docker-compose.yml`), garantindo isolamento e portabilidade:
+O ambiente completo de bancos de dados relacionais e NoSQL, bem como suas respectivas interfaces de gestão gráfica, é provisionado via **Docker Compose** integrado na mesma rede interna ([`docker-compose.yml`](file:///c:/Users/eu/Documents/GitHub/modelagem/docker-compose.yml)):
+
+```yaml
+services:
+  # SGBD Relacional
+  db:
+    image: mysql:8.0
+    container_name: mysql_modelagem
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: modelagem
+      MYSQL_USER: usuario
+      MYSQL_PASSWORD: senhasegura
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  # Interface Web MySQL
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: phpmyadmin_modelagem
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+
+  # SGBD NoSQL
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb_modelagem
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+    volumes:
+      - mongo_data:/data/db
+
+  # Interface Web MongoDB
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo_express_modelagem
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: rootpassword
+      ME_CONFIG_MONGODB_URL: mongodb://root:rootpassword@mongodb:27017/
+      ME_CONFIG_BASICAUTH: "false"
+
+volumes:
+  mysql_data:
+    driver: local
+  mongo_data:
+    driver: local
+```
 
 ### Serviços Configurados
 
@@ -312,7 +410,7 @@ O processo dispensa interpretadores intermediários, sendo executado nativamente
 │  INSERT IGNORE ... SELECT DISTINCT   │   │ INSERT INTO despesa          │
 │  - Popula as 12 tabelas de domínio   │   │ - Mapeia valores empenhado,  │
 │  - Gera localidade (municipio/UG)    │   │   liquidado e pago           │
-│  - Registros sentinelas (código 0)   │   │ - Converte chaves FK         │
+│  - Registros sentinelas (cód 0 e 1)  │   │ - Vincula 10 FKs NOT NULL    │
 └──────────────────────────────────────┘   └──────────────────────────────┘
                                                           │
                                                           ▼  DROP TABLE
@@ -322,21 +420,24 @@ O processo dispensa interpretadores intermediários, sendo executado nativamente
                                            └──────────────────────────────┘
 ```
 
-1. **[`Create_Equipe_5_2026.2.sql`] (DDL)**:
+1. **[`scripts/Create_Equipe_5_2026.2.sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/scripts/Create_Equipe_5_2026.2.sql) (DDL)**:
    - Cria o schema `modelagem` com charset `utf8mb4`.
-   - Cria as 13 tabelas relacionais, chaves primárias, chaves estrangeiras com restrições de integridade referencial (`ON DELETE NO ACTION ON UPDATE NO ACTION`) e índices secundários de consulta (`INDEX`).
+   - Cria as 13 tabelas relacionais, chaves primárias, chaves estrangeiras com restrições de integridade referencial estrita (`NOT NULL`) e índices secundários de consulta (`INDEX`).
 
-2. **[`Insert_Equipe_5_2026.2.sql`] (DML)**:
+2. **[`scripts/Insert_Equipe_5_2026.2.sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/scripts/Insert_Equipe_5_2026.2.sql) (DML Docker)**:
    - Criação da staging table `temp_despesas`.
-   - Ingestão massiva em alta velocidade via `LOAD DATA INFILE`.
+   - Ingestão massiva em alta velocidade via `LOAD DATA INFILE` do caminho `/var/lib/mysql-files/despesas-2025.csv`.
    - Recorte analítico do 1º semestre via `DELETE FROM temp_despesas WHERE CAST(LEFT(mes, 2) AS SIGNED) > 6`.
-   - Povoamento idempotente das 12 tabelas de domínio com `INSERT IGNORE ... SELECT DISTINCT`.
-   - Povoamento da tabela central `despesa` aplicando casts, conversões e mapeamentos de integridade referencial.
+   - Inserção dos registros sentinelas e povoamento idempotente das 12 tabelas de domínio.
+   - Povoamento da tabela central `despesa` com casts monetários e integridade de chaves `NOT NULL`.
    - Descarte automático da staging table (`DROP TABLE temp_despesas`) e restauração das restrições.
+
+3. **[`scripts/Insert_Equipe_5_2026.2(local).sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/scripts/Insert_Equipe_5_2026.2(local).sql) (DML Local)**:
+   - Versão espelho otimizada para execução direta no MySQL Server nativo/Workbench (Porta 3306), conforme detalhado no [**`EXECUCAO_LOCAL.md`**](file:///c:/Users/eu/Documents/GitHub/modelagem/EXECUCAO_LOCAL.md).
 
 ---
 
-## 🚀 Guia de Execução Passo a Passo (Ambiente Relacional / MySQL)
+## 🚀 Guia de Execução Passo a Passo (Ambiente Docker)
 
 ### 1. Pré-requisitos
 
@@ -347,17 +448,16 @@ O processo dispensa interpretadores intermediários, sendo executado nativamente
 
 1. Acesse o portal: [TCE-PB Dados Abertos - Consolidados](https://dados-abertos.tce.pb.gov.br/dados-consolidados).
 2. Na seção **Despesas**, baixe o pacote do exercício de **2025**.
-3. Extraia o CSV para a pasta `src/raw/` com o nome exato:
+3. Extraia o CSV para a pasta `raw/` com o nome exato:
    ```plaintext
-   src/raw/despesas-2025.csv
+   raw/despesas-2025.csv
    ```
 
 ### 3. Iniciar os Serviços Docker
 
-Na pasta `src/`, suba os containers via Docker Compose:
+Na raiz do repositório, suba os containers via Docker Compose:
 
 ```bash
-cd src
 docker compose up -d
 ```
 
@@ -366,7 +466,7 @@ Verifique o status dos serviços:
 docker compose ps
 ```
 
-### 4. Copiar o CSV para a Pasta do MySQL
+### 4. Copiar o CSV para a Pasta Segura do MySQL
 
 O MySQL restringe cargas locais fora do caminho seguro (`secure-file-priv`). Transfira o arquivo para o container:
 
@@ -382,20 +482,20 @@ Execute os comandos a partir da raiz do repositório:
 
 ```powershell
 # 1. Criação do Banco de Dados e Tabelas (DDL)
-Get-Content src/scripts/sql/Create_Equipe_5_2026.2.sql | docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem
+Get-Content scripts/Create_Equipe_5_2026.2.sql | docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem
 
 # 2. Carga, Filtro do 1º Semestre e Normalização Relacional (DML)
-Get-Content src/scripts/sql/Insert_Equipe_5_2026.2.sql | docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem
+Get-Content scripts/Insert_Equipe_5_2026.2.sql | docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem
 ```
 
 #### 🐧 Linux / macOS (Bash) ou Prompt de Comando (CMD):
 
 ```bash
 # 1. Criação do Banco de Dados e Tabelas (DDL)
-docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem < src/scripts/sql/Create_Equipe_5_2026.2.sql
+docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem < scripts/Create_Equipe_5_2026.2.sql
 
 # 2. Carga, Filtro do 1º Semestre e Normalização Relacional (DML)
-docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem < src/scripts/sql/Insert_Equipe_5_2026.2.sql
+docker exec -i mysql_modelagem mysql -uroot -prootpassword modelagem < scripts/Insert_Equipe_5_2026.2.sql
 ```
 
 ### 6. Validação e Auditoria dos Dados
@@ -405,31 +505,44 @@ Abra o phpMyAdmin em [http://localhost:8080](http://localhost:8080) ou conecte o
 ```sql
 USE `modelagem`;
 
--- 1. Total de registros da tabela despesa (esperado: exatamente 1.068.148 linhas no 1º semestre)
+-- 1. Total consolidado da tabela despesa (esperado: exatamente 1.068.148 linhas no 1º semestre)
 SELECT COUNT(*) AS total_despesas FROM despesa;
 
--- 2. Auditoria de ausência de nulos em chaves primárias e campos obrigatórios
+-- 2. Auditoria de ausência estrita de nulos nas chaves e campos obrigatórios (deve retornar 0 em todas)
 SELECT 
     COUNT(*) - COUNT(id) AS nulos_id,
+    COUNT(*) - COUNT(numero_empenho) AS nulos_empenho,
     COUNT(*) - COUNT(data_empenho) AS nulos_data,
+    COUNT(*) - COUNT(mes) AS nulos_mes,
     COUNT(*) - COUNT(codigo_unidade_gestora) AS nulos_ug,
-    COUNT(*) - COUNT(cpf_cnpj) AS nulos_credor
+    COUNT(*) - COUNT(cpf_cnpj) AS nulos_credor,
+    COUNT(*) - COUNT(id_licitacao) AS nulos_licitacao,
+    COUNT(*) - COUNT(codigo_funcao) AS nulos_funcao,
+    COUNT(*) - COUNT(codigo_programa) AS nulos_programa,
+    COUNT(*) - COUNT(codigo_acao) AS nulos_acao,
+    COUNT(*) - COUNT(codigo_categoria_economica) AS nulos_categoria,
+    COUNT(*) - COUNT(codigo_natureza) AS nulos_natureza,
+    COUNT(*) - COUNT(codigo_modalidade_aplicacao) AS nulos_modalidade,
+    COUNT(*) - COUNT(codigo_elemento_despesa) AS nulos_elemento,
+    COUNT(*) - COUNT(codigo_fonte_recurso) AS nulos_fonte
 FROM despesa;
 
--- 3. Consulta analítica integrando a execução dos 3 estágios da despesa
+-- 3. Consulta analítica integrando as tabelas de domínio via INNER JOIN
 SELECT 
     d.numero_empenho,
     d.data_empenho,
     m.nome_municipio,
     ug.nome_unidade_gestora,
     c.nome_credor,
+    l.modalidade_licitacao,
     d.valor_empenhado,
     d.valor_liquidado,
     d.valor_pago
 FROM despesa d
-JOIN unidade_gestora ug ON d.codigo_unidade_gestora = ug.codigo_unidade_gestora
-JOIN municipio m ON ug.id_municipio = m.id_municipio
-JOIN credor c ON d.cpf_cnpj = c.cpf_cnpj
+INNER JOIN unidade_gestora ug ON d.codigo_unidade_gestora = ug.codigo_unidade_gestora
+INNER JOIN municipio m ON ug.id_municipio = m.id_municipio
+INNER JOIN credor c ON d.cpf_cnpj = c.cpf_cnpj
+INNER JOIN licitacao l ON d.id_licitacao = l.id_licitacao
 ORDER BY d.data_empenho DESC
 LIMIT 10;
 ```
@@ -438,94 +551,112 @@ LIMIT 10;
 
 ## 🍃 Modelagem NoSQL e Migração para MongoDB
 
-A migração do modelo relacional normalizado (OLTP / 3FN) para o banco de dados orientado a documentos (**MongoDB**) foi projetada utilizando o padrão arquitetural **Extended Reference Pattern** (Modelo Híbrido), implementado visualmente e executado via **MongoDB Relational Migrator**.
+A migração do modelo relacional normalizado (OLTP / 3FN) para o banco de dados orientado a documentos (**MongoDB**) foi concebida para preservar a **mesma arquitetura modular relacional**, mapeando diretamente cada uma das 13 tabelas para **13 coleções BSON independentes** no banco `modelagem`.
+
+Essa abordagem assegura total rastreabilidade fiscal, isolamento de domínios cadastrais e viabiliza operações relacionais e analíticas nativas no MongoDB através de pipelines de agregação com `$lookup`.
 
 ### Diagrama da Arquitetura Orientada a Documentos
 
 ```mermaid
 graph TD
-    subgraph "MongoDB: Database modelagem"
+    subgraph "MongoDB: Database modelagem (13 Coleções)"
         direction TB
-        C["Coleção: credor"]
-        D["Coleção: despesa"]
+        despesa["Coleção: despesa (Central Transacional)"]
         
-        subgraph "Documento: despesa"
-            direction TB
-            D1["Campos Transacionais: numeroEmpenho, dataEmpenho, mes, valores..."]
-            D2["Subdocumento: credor { cpfCnpj, nomeCredor }"]
-            D3["Subdocumento: unidadeGestora { ..., municipio }"]
-            D4["Subdocumento: licitacao"]
-            D5["Subdocumentos Orçamentários: funcao, programa, acao, elemento..."]
-        end
+        municipio["Coleção: municipio"]
+        unidade_gestora["Coleção: unidade_gestora"]
+        credor["Coleção: credor"]
+        licitacao["Coleção: licitacao"]
+        funcao["Coleção: funcao"]
+        programa["Coleção: programa"]
+        acao["Coleção: acao"]
+        categoria_economica["Coleção: categoria_economica"]
+        natureza_despesa["Coleção: natureza_despesa"]
+        modalidade_aplicacao["Coleção: modalidade_aplicacao"]
+        elemento_despesa["Coleção: elemento_despesa"]
+        fonte_recurso["Coleção: fonte_recurso"]
+        
+        municipio -->|"id_municipio"| unidade_gestora
+        unidade_gestora -->|"codigo_unidade_gestora"| despesa
+        credor -->|"cpf_cnpj"| despesa
+        licitacao -->|"id_licitacao"| despesa
+        funcao -->|"codigo_funcao"| despesa
+        programa -->|"codigo_programa"| despesa
+        acao -->|"codigo_acao"| despesa
+        categoria_economica -->|"codigo_categoria_economica"| despesa
+        natureza_despesa -->|"codigo_natureza"| despesa
+        modalidade_aplicacao -->|"codigo_modalidade_aplicacao"| despesa
+        elemento_despesa -->|"codigo_elemento_despesa"| despesa
+        fonte_recurso -->|"codigo_fonte_recurso"| despesa
     end
-    
-    C -. "Extended Reference (Cadastro Central)" .-> D2
 ```
-
-### 🧠 Racional Arquitetural: Agrupamento em `despesa` vs. Coleção `credor`
-
-A decisão de incorporar 11 tabelas dentro do documento `despesa` e manter apenas `credor` como coleção separada fundamenta-se nos princípios centrais de modelagem de documentos:
-
-#### 1. Por que incorporar classificadores, licitação e localidade na despesa?
-* **Atomicidade do Ato Orçamentário**: No setor público (Lei 4.320/64), uma despesa é caracterizada por sua dotação completa (Função, Programa, Ação, Elemento, Fonte, Unidade Gestora). Esses classificadores possuem baixa cardinalidade (entre 2 e 1.100 registros) e são conceitualmente imutáveis após a liquidação do empenho.
-* **Eliminação de `$lookup` (Zero Joins)**: Armazenar esses dados incorporados (*embedded*) permite que qualquer relatório analítico de gastos (ex.: despesas de Saúde em Amparo) seja consultado em uma única operação de I/O em disco, dispensando os múltiplos *JOINs* que tornavam o modelo relacional custoso.
-
-#### 2. Por que manter a coleção independente `credor`?
-* **Alta Cardinalidade e Entidade de Negócio**: O universo de credores soma **168.771 registros distintos** (CPFs e CNPJs de fornecedores, servidores e terceirizados). O credor possui ciclo de vida próprio e independe de haver empenho no mês vigente.
-* **Consultas Cadastrais Diretas**: Manter a coleção de topo `credor` viabiliza análises cadastrais (auditorias fiscais, listas de fornecedores contratados) sem a necessidade de varrer exaustivamente a coleção de 1 milhão de transações de despesas.
-* **Aplicação do Extended Reference Pattern**: Para manter as consultas financeiras rápidas sem abrir mão do catálogo mestre, adota-se o modelo híbrido:
-  - A coleção `credor` guarda o **cadastro primário completo** (`cpfCnpj`, `nomeCredor`).
-  - A coleção `despesa` embute apenas a **referência necessária para exibição imediata**:
-    ```json
-    {
-      "credor": {
-        "cpfCnpj": "00000000000191",
-        "nomeCredor": "BANCO DO BRASIL SA"
-      }
-    }
-    ```
 
 ---
 
 ### 🚀 Guia de Migração e Carga no MongoDB via Relational Migrator
 
-O projeto de migração está formalmente configurado e armazenado em:  
-📁 [`src/scripts/nosql/migracao_modelagem.relmig`]
-com schemas JSON complementares em [`src/scripts/nosql/credor_MongoDBSchema.json`] e [`src/scripts/nosql/despesa_MongoDBSchema.json`].
-
-Siga os passos abaixo para replicar a migração do MySQL para o MongoDB:
+Siga os passos abaixo para realizar a migração completa do MySQL para o MongoDB utilizando o [**MongoDB Relational Migrator**](https://www.mongodb.com/products/tools/relational-migrator):
 
 #### Passo 1: Inicializar o Ambiente Docker
 Certifique-se de que os serviços MySQL e MongoDB estão rodando:
 ```bash
-cd src
 docker compose up -d
 docker compose ps
 ```
 
-#### Passo 2: Importar o Projeto no MongoDB Relational Migrator
-1. Abra o aplicativo desktop oficial [MongoDB Relational Migrator](https://www.mongodb.com/products/tools/relational-migrator).
-2. Na tela inicial, clique em **Import project** (ou **Open Project**).
-3. Selecione o arquivo de migração do projeto:
-   ```plaintext
-   src/scripts/nosql/migracao_modelagem.relmig
-   ```
-4. O projeto carregará automaticamente as 13 tabelas do MySQL e as regras de transformação NoSQL já configuradas (mapeamento das 11 tabelas como subdocumentos incorporados em `despesa` e criação da coleção de topo `credor`).
+#### Passo 2: Criar/Importar o Projeto no MongoDB Relational Migrator
+1. Abra o aplicativo desktop oficial **MongoDB Relational Migrator**.
+2. Conecte-se ao banco de dados relacional de **Origem (Source - MySQL)**:
+   * **Host**: `localhost` | **Porta**: `3307`
+   * **Usuário**: `root` | **Senha**: `rootpassword`
+   * **Database**: `modelagem`
+3. O Migrator detectará automaticamente as 13 tabelas relacionais do banco.
+4. Para a modelagem de destino, selecione o mapeamento **1:1 (Table to Collection)** para que cada uma das 13 tabelas seja transposta para uma coleção correspondente no MongoDB com o mesmo nome (`despesa`, `credor`, `licitacao`, `unidade_gestora`, etc.).
 
-#### Passo 3: Conectar aos Bancos de Dados
-Configure os nós de conexão no aplicativo:
-* **Origem (Source - MySQL)**:
-  * **Host**: `localhost` | **Porta**: `3307`
-  * **Usuário**: `root` | **Senha**: `rootpassword`
-  * **Database**: `modelagem`
-* **Destino (Target - MongoDB)**:
-  * **Connection String**: `mongodb://root:rootpassword@localhost:27017/modelagem?authSource=admin`
+#### Passo 3: Conectar ao Banco de Dados de Destino (Target - MongoDB)
+Configure o nó de conexão do MongoDB:
+* **Connection String**: `mongodb://root:rootpassword@localhost:27017/modelagem?authSource=admin`
 
 #### Passo 4: Executar a Migração
 1. Acesse a aba **Data Migration** no menu superior do Migrator.
-2. Crie um novo job no modo **Snapshot** (Carga em lote pontual).
-3. Selecione as coleções de destino: **`despesa`** e **`credor`**.
-4. Clique em **Start** e acompanhe o progresso do carregamento.
+2. Crie um novo job no modo **Snapshot** (Carga em lote completa).
+3. Selecione todas as 13 coleções mapeadas para migração.
+4. Clique em **Start** e acompanhe o progresso em tempo real até a conclusão.
+
+#### Passo 5: Validação dos Dados no MongoDB
+Acesse o painel **Mongo Express** em [http://localhost:8081](http://localhost:8081) ou conecte-se via **MongoDB Compass** / **mongosh** na porta `27017`:
+
+```javascript
+use modelagem;
+
+// 1. Total consolidado de documentos na coleção central despesa
+db.despesa.countDocuments(); // Esperado: 1.068.148
+
+// 2. Total de documentos na coleção credor
+db.credor.countDocuments();  // Esperado: 168.771
+
+// 3. Consulta analítica via pipeline com $lookup (equivalente ao INNER JOIN relacional)
+db.despesa.aggregate([
+  { $match: { numeroEmpenho: { $gt: 0 } } },
+  {
+    $lookup: {
+      from: "credor",
+      localField: "cpf_cnpj",
+      foreignField: "cpf_cnpj",
+      as: "dados_credor"
+    }
+  },
+  {
+    $lookup: {
+      from: "unidade_gestora",
+      localField: "codigo_unidade_gestora",
+      foreignField: "codigo_unidade_gestora",
+      as: "dados_ug"
+    }
+  },
+  { $limit: 5 }
+]);
+```
 
 ---
 
@@ -536,34 +667,22 @@ Configure os nós de conexão no aplicativo:
 ```plaintext
 modelagem/
 ├── README.md                                  # Documentação técnica e guia operacional do projeto
+├── EXECUCAO_LOCAL.md                          # Guia passo a passo para execução no MySQL Server nativo / Workbench
 ├── LICENSE                                    # Termos de licença de uso (GPL v3)
+├── docker-compose.yml                         # Infraestrutura MySQL 8.0, MongoDB, phpMyAdmin e Mongo Express
 │
-├── src/                                       # Diretório principal de desenvolvimento
-│   ├── docker-compose.yml                     # Infraestrutura MySQL 8.0, MongoDB, phpMyAdmin e Mongo Express
-│   ├── modelo_2025.mwb                        # Modelo EER relacional editável do MySQL Workbench
-│   │
-│   ├── img/                                   # Diagramas visuais exportados
-│   │   └── eer_diagram.png                    # Imagem exportada do modelo relacional (DER / 3FN)
-│   │
-│   ├── raw/                                   # Diretório de dados brutos (ignorado no Git)
-│   │   ├── despesas-2025.csv                  # CSV consolidado de despesas 2025 do TCE-PB
-│   │   └── receitas-2025.csv                  # CSV consolidado de receitas 2025 do TCE-PB
-│   │
-│   ├── scripts/                               # Automação de banco de dados (SQL e NoSQL)
-│   │   ├── sql/                               # Scripts SQL de engenharia e modelagem relacional
-│   │   │   ├── Create_Equipe_5_2026.2.sql     # DDL: Definição de tabelas, PKs, FKs e restrições
-│   │   │   ├── Insert_Equipe_5_2026.2.sql     # DML: Staging, carga, filtro semestral e 3FN
-│   │   │   ├── Insert_Equipe_5_2026.2(local).sql # DML alternativo para execução local
-│   │   │   └── modelo_2025.mwb                # Cópia do modelo relacional do Workbench
-│   │   │
-│   │   └── nosql/                             # Artefatos de modelagem e migração para MongoDB
-│   │       ├── migracao_modelagem.relmig      # Projeto do MongoDB Relational Migrator
-│   │       ├── credor_MongoDBSchema.json      # JSON Schema da coleção credor
-│   │       └── despesa_MongoDBSchema.json     # JSON Schema da coleção despesa
-│   │
-│   └── python/                                # Análise exploratória preliminar
-│       ├── consolidacao.ipynb                 # Notebook de inspeção e consolidação multianual
-│       └── normalizacao.ipynb                 # Notebook com prototipagem inicial de normalização
+├── img/                                       # Diagramas visuais exportados
+│   └── eer_diagram.png                        # Imagem exportada do modelo relacional (DER / 3FN)
+│
+├── raw/                                       # Diretório de dados brutos (ignorado no Git)
+│   ├── despesas-2025.csv                      # CSV consolidado de despesas 2025 do TCE-PB
+│   └── receitas-2025.csv                      # CSV consolidado de receitas 2025 do TCE-PB
+│
+├── scripts/                                   # Scripts SQL de automação e engenharia de dados
+│   ├── Create_Equipe_5_2026.2.sql             # DDL: Definição de tabelas, PKs, 10 FKs NOT NULL e índices
+│   ├── Insert_Equipe_5_2026.2.sql             # DML Docker: Carga do /var/lib/mysql-files/ e 3FN
+│   ├── Insert_Equipe_5_2026.2(local).sql      # DML Local: Carga do diretório seguro local Uploads
+│   └── modelo_2025_gp5.mwb                    # Modelo EER relacional editável do MySQL Workbench
 │
 └── zips/                                      # Arquivos compactados originais (opcional)
     ├── despesas-2025.zip                      # Download bruto de despesas do TCE-PB
@@ -574,13 +693,10 @@ modelagem/
 
 | Diretório / Arquivo | Classificação | Descrição e Finalidade Técnica |
 | :--- | :--- | :--- |
-| **`/` (Raiz)** | Governança | Abriga a documentação principal ([`README.md`]), termos de licença ([`LICENSE`]) e configurações do repositório Git. |
-| **`src/`** | Núcleo do Projeto | Diretório central que reúne infraestrutura conteinerizada, modelagem relacional, scripts de automação e cadernos de apoio. |
-| **`src/docker-compose.yml`** | Infraestrutura | Manifesto Docker unificado contendo MySQL 8.0, MongoDB, phpMyAdmin e Mongo Express com volumes persistentes. |
-| **`src/modelo_2025.mwb`** | Modelagem EER | Arquivo fonte editável do MySQL Workbench com o modelo relacional normalizado até a 3FN, chaves e restrições. |
-| **`src/img/`** | Artefatos Visuais | Diagramas de entidade-relacionamento (DER/EER) exportados em alta resolução ([`eer_diagram.png`]) para documentação e relatórios. |
-| **`src/raw/`** | *Data Lake / Ingestão* | Pasta destinada a receber os arquivos brutos extraídos do portal de dados abertos do TCE-PB (`despesas-2025.csv`). Arquivos ignorados pelo Git via `.gitignore` devido ao tamanho (>1.9 GB). |
-| **`src/scripts/sql/`** | Engenharia Relacional | Contém os scripts SQL nativos: DDL ([`Create_Equipe_5_2026.2.sql`]), DML ([`Insert_Equipe_5_2026.2.sql`]) e modelo `.mwb`. |
-| **`src/scripts/nosql/`** | Engenharia NoSQL | Artefatos da migração para MongoDB: projeto do MongoDB Relational Migrator ([`migracao_modelagem.relmig`]) e esquemas JSON de validação das coleções `despesa` e `credor`. |
-| **`src/python/`** | *Data Science / EDA* | Cadernos Jupyter (`.ipynb`) utilizados na fase exploratória inicial de análise estatística, consolidação multianual e prototipagem dos tratamentos de dados. |
+| **`README.md`** | Governança | Documentação principal com especificações arquiteturais, modelo conceitual, justificativas e guias Docker/NoSQL. |
+| **`EXECUCAO_LOCAL.md`** | Guia Operacional | Manual prático para execução no MySQL Server bare-metal (porta 3306), Workbench e Google Drive. |
+| **`docker-compose.yml`** | Infraestrutura | Manifesto Docker unificado contendo MySQL 8.0, MongoDB, phpMyAdmin e Mongo Express com volumes persistentes. |
+| **`img/`** | Artefatos Visuais | Diagramas de entidade-relacionamento (DER/EER) exportados em alta resolução ([`eer_diagram.png`](file:///c:/Users/eu/Documents/GitHub/modelagem/img/eer_diagram.png)) para documentação e relatórios. |
+| **`raw/`** | *Data Lake / Ingestão* | Pasta destinada a receber os arquivos brutos extraídos do portal de dados abertos do TCE-PB (`despesas-2025.csv`). Arquivos ignorados pelo Git via `.gitignore` devido ao tamanho (>1.9 GB). |
+| **`scripts/`** | Engenharia SQL | **Coração do banco de dados**: contém scripts SQL nativos divididos em DDL ([`Create_Equipe_5_2026.2.sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/scripts/Create_Equipe_5_2026.2.sql)), DML Docker ([`Insert_Equipe_5_2026.2.sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/scripts/Insert_Equipe_5_2026.2.sql)), DML Local ([`Insert_Equipe_5_2026.2(local).sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/scripts/Insert_Equipe_5_2026.2(local).sql)) e o modelo Workbench ([`modelo_2025_gp5.mwb`](file:///c:/Users/eu/Documents/GitHub/modelagem/scripts/modelo_2025_gp5.mwb)). |
 | **`zips/`** | Arquivos Compactados | Pasta de conveniência local para armazenamento dos arquivos compactados baixados diretamente do portal governamental. |
