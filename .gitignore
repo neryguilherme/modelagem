@@ -6,9 +6,8 @@ zips/
 parquet/
 
 # Dumps SQL de grande volume (mantendo apenas .gitkeep)
-2va-dw/dumps/*.sql
-dw/dumps/*.sql
-**/dumps/*.sql
+2va-dw/dumps/DumpDWDims.sql
+
 
 # Backups do MySQL Workbench e arquivos de sistema
 *.mwb.bak
