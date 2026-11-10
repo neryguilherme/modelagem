@@ -5,6 +5,18 @@ dados_consolidados/
 zips/
 parquet/
 
+# Dumps SQL de grande volume (mantendo apenas .gitkeep)
+2va-dw/dumps/*.sql
+dw/dumps/*.sql
+**/dumps/*.sql
+
+# Backups do MySQL Workbench e arquivos de sistema
+*.mwb.bak
+*.bak
+desktop.ini
+Thumbs.db
+.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

@@ -38,7 +38,7 @@ A pasta do Google Drive reúne os seguintes recursos:
 * 📁 **`modelagem-mongo-gp5-json-JSON_EXAMPLE_SCHEMA/`**: Exemplos de documentos e schemas JSON das coleções NoSQL.
 * 📁 **`raw/`**: Base bruta original do TCE-PB extraída (`despesas-2025.csv`).
 * 📄 **`Create_Equipe_5_2026.2.sql`**: Script DDL de criação do banco de dados, chaves primárias e estrangeiras.
-* 📄 **`Insert_Equipe_5_2026.2(local).sql`**: Script DML de ingestão massiva e normalização 3FN configurado para caminhos locais do Windows.
+* 📄 **`Insert_Equipe_5_2026.2.sql`**: Script DML de ingestão massiva e normalização 3FN configurado para caminhos locais do Windows.
 * 📐 **`modelo_2025_gp5.mwb`**: Modelo conceitual/EER editável no MySQL Workbench.
 * 🖼️ **`modelo_2025_gp5.png`**: Diagrama relacional visual de alta resolução.
 * 📝 **`Validação da Base de Dados - Grupo 5`**: Relatório de testes contábeis e integridade relacional.
@@ -83,7 +83,7 @@ copy "SEU_CAMINHO_LOCAL\raw\despesas-2025.csv" "SUA_PASTA_SEGURA\despesas-2025.c
 ```
 
 > [!IMPORTANT]
-> Caso a sua variável `secure_file_priv` aponte para um diretório diferente do padrão, abra o script [`scripts/Insert_Equipe_5_2026.2(local).sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/scripts/Insert_Equipe_5_2026.2(local).sql) na linha **66** e atualize o caminho entre aspas simples para corresponder exatamente à localização do seu arquivo CSV:
+> Caso a sua variável `secure_file_priv` aponte para um diretório diferente do padrão, abra o script [`1va-relacional/Insert_Equipe_5_2026.2.sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/1va-relacional/Insert_Equipe_5_2026.2.sql) na linha **66** e atualize o caminho entre aspas simples para corresponder exatamente à localização do seu arquivo CSV:
 > ```sql
 > LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/despesas-2025.csv'
 > ```
@@ -102,14 +102,14 @@ Abra o **MySQL Workbench** e clique na sua conexão local:
 ### Passo 2: Executar o Script DDL (Criação do Banco e Tabelas)
 1. No menu superior, vá em **File** $\rightarrow$ **Open SQL Script...** (ou `Ctrl + Shift + O`).
 2. Selecione o arquivo:
-   [`scripts/Create_Equipe_5_2026.2.sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/scripts/Create_Equipe_5_2026.2.sql)
+   [`1va-relacional/Create_Equipe_5_2026.2.sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/1va-relacional/Create_Equipe_5_2026.2.sql)
 3. Clique no ícone de **Raio** (⚡) para executar todo o script.
 4. O script criará o schema `modelagem`, as 13 tabelas normalizadas (3FN), suas chaves primárias, restrições de integridade referencial (`FOREIGN KEY NOT NULL`) e índices secundários.
 
 ### Passo 3: Executar o Script DML (Carga, Filtro e Normalização)
 1. No menu superior, vá em **File** $\rightarrow$ **Open SQL Script...**.
 2. Selecione o arquivo:
-   [`scripts/Insert_Equipe_5_2026.2(local).sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/scripts/Insert_Equipe_5_2026.2(local).sql)
+   [`1va-relacional/Insert_Equipe_5_2026.2.sql`](file:///c:/Users/eu/Documents/GitHub/modelagem/1va-relacional/Insert_Equipe_5_2026.2.sql)
 3. Clique no ícone de **Raio** (⚡).
 4. O script executará as seguintes etapas automatizadas:
    - Criação da tabela de staging `temp_despesas`;
