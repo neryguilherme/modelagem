@@ -52,7 +52,7 @@ CREATE TABLE `dimdata` (
 /*Data for the table `dimdata` */
 
 insert  into `dimdata`(`keyData`,`data_id`,`dia_ehdiautil`,`dia_numeronasemana`,`dia_numeronomes`,`dia_numeronoano`,`semana_id`,`semana_nome`,`semana_texto`,`semana_numeronoano`,`mes_id`,`mes_nome`,`mes_texto`,`mes_numeronoano`,`trimestre_id`,`trimestre_nome`,`trimestre_texto`,`trimestre_numeronoano`,`semestre_id`,`semestre_nome`,`semestre_texto`,`semestre_numeronoano`,`ano_id`,`ano_nome`,`ano_texto`) values 
-(0,'0000-00-00 00:00:00',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
+(0,'1970-01-01 00:00:00',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (20080101,'2008-01-01 00:00:00',1,2,1,1,200801,'1','Semana 1',1,200801,'01','Jan','1',20081,'Q1','Trimestre 1',1,20081,'S1','Semestre 1',1,2008,'2008','2008'),
 (20080102,'2008-01-02 00:00:00',1,3,2,2,200801,'1','Semana 1',1,200801,'01','Jan','1',20081,'Q1','Trimestre 1',1,20081,'S1','Semestre 1',1,2008,'2008','2008'),
 (20080103,'2008-01-03 00:00:00',1,4,3,3,200801,'1','Semana 1',1,200801,'01','Jan','1',20081,'Q1','Trimestre 1',1,20081,'S1','Semestre 1',1,2008,'2008','2008'),
