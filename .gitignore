@@ -235,3 +235,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+2va-dw/carga/carga Credor.sql 
+2va-dw/carga/carga DimClassificacaoOrcamentaria.sql 
+2va-dw/carga/carga Fato.sql
